@@ -2,24 +2,15 @@
 
 namespace Tests\Feature;
 
-use Illuminate\Support\Facades\Cache;
 use Tests\TestCase;
 
 class SoanPageTest extends TestCase
 {
-    protected function setUp(): void
-    {
-        parent::setUp();
-
-        config(['bo_soan.khach' => [['ten' => 'Khách A', 'khoa' => 'khoa-a']]]);
-    }
-
     private function taoPhien(): string
     {
         $noiDung = ['type' => 'doc', 'content' => [['type' => 'paragraph', 'content' => [['type' => 'text', 'text' => 'Nội dung cũ']]]]];
 
-        return $this->withHeaders(['Authorization' => 'Bearer khoa-a'])
-            ->postJson('/api/v1/phien-soan', ['noi_dung' => $noiDung])
+        return $this->postJson('/api/v1/phien-soan', ['noi_dung' => $noiDung], $this->banQuyenHeaders('Khách A'))
             ->json('ma_phien');
     }
 
@@ -45,8 +36,7 @@ class SoanPageTest extends TestCase
 
         $this->postJson("/soan/{$ma}/ket-qua", ['noi_dung' => $ketQua])->assertOk();
 
-        $this->withHeaders(['Authorization' => 'Bearer khoa-a'])
-            ->getJson("/api/v1/phien-soan/{$ma}")
+        $this->getJson("/api/v1/phien-soan/{$ma}", $this->banQuyenHeaders('Khách A'))
             ->assertJsonPath('noi_dung.content.0.content.0.text', 'Nội dung mới');
     }
 

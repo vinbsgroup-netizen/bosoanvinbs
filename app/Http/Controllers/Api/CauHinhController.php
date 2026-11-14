@@ -15,7 +15,7 @@ class CauHinhController extends Controller
      */
     public function show(Request $request): CauHinhKhachResource
     {
-        $cauHinh = CauHinhKhach::firstOrNew(['ten_khach' => $request->attributes->get('khach')]);
+        $cauHinh = CauHinhKhach::firstOrNew(['ma_giay_phep' => $this->maGiayPhep($request)]);
 
         return new CauHinhKhachResource($cauHinh);
     }
@@ -30,11 +30,16 @@ class CauHinhController extends Controller
         ]);
 
         $cauHinh = CauHinhKhach::updateOrCreate(
-            ['ten_khach' => $request->attributes->get('khach')],
+            ['ma_giay_phep' => $this->maGiayPhep($request)],
             ['url_dich_vu' => $this->chuanHoaUrl($validated['url_dich_vu'] ?? null)],
         );
 
         return (new CauHinhKhachResource($cauHinh))->response()->setStatusCode(200);
+    }
+
+    private function maGiayPhep(Request $request): string
+    {
+        return (string) $request->attributes->get('khach');
     }
 
     /**

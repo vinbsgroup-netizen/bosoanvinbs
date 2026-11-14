@@ -18,7 +18,7 @@ class CauHinhKhachFactory extends Factory
     public function definition(): array
     {
         return [
-            'ten_khach' => fake()->unique()->company(),
+            'ma_giay_phep' => (string) fake()->unique()->numberBetween(1, 999999),
             'url_dich_vu' => 'https://'.fake()->unique()->domainName().'/api/documenteditor/',
         ];
     }

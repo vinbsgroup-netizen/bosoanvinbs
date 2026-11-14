@@ -17,12 +17,12 @@ class CauHinhKhachResource extends JsonResource
     /**
      * Transform the resource into an array.
      *
-     * @return array{ten_khach: string, url_dich_vu: string|null}
+     * @return array{ma_giay_phep: string, url_dich_vu: string|null}
      */
     public function toArray(Request $request): array
     {
         return [
-            'ten_khach' => $this->ten_khach,
+            'ma_giay_phep' => $this->ma_giay_phep,
             'url_dich_vu' => $this->url_dich_vu,
         ];
     }
