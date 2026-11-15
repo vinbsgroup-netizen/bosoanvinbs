@@ -1088,6 +1088,10 @@ const mountEditor = () => {
     editor.on('selectionUpdate', syncTableTab);
     editor.on('transaction', syncTableTab);
     bindWkMenus(root, (name, value) => runWkMenu(editor, name, value));
+    root.addEventListener('bo-soan:insert-table', (event) => {
+        const { rows, cols } = event.detail;
+        editor.chain().focus().insertTable({ rows, cols, withHeaderRow: true }).run();
+    });
     root.addEventListener('click', (event) => {
         const launcher = event.target.closest('[data-dialog]');
         if (!launcher) return;

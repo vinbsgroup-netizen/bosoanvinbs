@@ -261,7 +261,28 @@ export const renderDemoRibbon = (root) => {
 const bindDemoMenus = (ribbonRoot) => {
     const close = () => ribbonRoot.querySelectorAll('.wk-menu.is-open').forEach((m) => m.classList.remove('is-open'));
     const closeCombos = () => ribbonRoot.querySelectorAll('.contract-template-office-combo-menu-open').forEach((m) => m.classList.remove('contract-template-office-combo-menu-open'));
+    const highlightTableGrid = (cell) => {
+        const grid = cell.closest('[data-wk-table-grid]');
+        const [rows, cols] = cell.getAttribute('data-wk-cell').split(',').map(Number);
+        grid.querySelectorAll('[data-wk-cell]').forEach((item) => {
+            const [itemRow, itemCol] = item.getAttribute('data-wk-cell').split(',').map(Number);
+            item.classList.toggle('wk-on', itemRow <= rows && itemCol <= cols);
+        });
+        const label = grid.parentElement.querySelector('[data-wk-grid-label]');
+        if (label) label.textContent = `Chèn bảng ${rows} × ${cols}`;
+    };
+    ribbonRoot.addEventListener('mouseover', (event) => {
+        const cell = event.target.closest('[data-wk-cell]');
+        if (cell) highlightTableGrid(cell);
+    });
     ribbonRoot.addEventListener('click', (event) => {
+        const tableCell = event.target.closest('[data-wk-cell]');
+        if (tableCell) {
+            const [rows, cols] = tableCell.getAttribute('data-wk-cell').split(',').map(Number);
+            close();
+            ribbonRoot.dispatchEvent(new CustomEvent('bo-soan:insert-table', { bubbles: true, detail: { rows, cols } }));
+            return;
+        }
         const caret = event.target.closest('[data-combo-toggle]');
         if (caret) {
             const combo = caret.closest('.contract-template-office-combo');
