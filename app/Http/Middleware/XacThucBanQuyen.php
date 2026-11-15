@@ -5,12 +5,17 @@ namespace App\Http\Middleware;
 use Closure;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Cache;
+use Illuminate\Support\Facades\Http;
 use Symfony\Component\HttpFoundation\Response;
+use Throwable;
 
 /**
  * Chỉ cho phép yêu cầu có token bản quyền vi-sos hợp lệ, còn hạn, và gói có chức năng bộ soạn.
  *
- * Token được kiểm tra offline bằng public key của sản phẩm, cùng cách làm của client vi-sos.
+ * Token được kiểm tra bằng public key của sản phẩm ghi trong claim "aud". Khóa lấy từ vi-sos
+ * (GET {may_chu}/api/license/public-key/{san_pham}) và lưu cache, nên sản phẩm nào được vi-sos cấp gói
+ * có bộ soạn thì dùng được ngay, không cần khai báo trong .env. Khóa khai báo trong config (nếu có) được ưu tiên.
  * Mã giấy phép (claim "sub") được gắn vào request dưới khóa "khach" để phân quyền dữ liệu.
  */
 class XacThucBanQuyen
@@ -62,12 +67,14 @@ class XacThucBanQuyen
         $claims = $this->giaiMaJson($phanNoiDung);
         $chuKy = $this->giaiMaBase64Url($phanChuKy);
 
-        foreach ($this->khoaTheoSanPham() as $sanPham => $khoaPem) {
-            if (! $this->dungSanPham($claims, $sanPham)) {
+        foreach ($this->cacSanPham($claims) as $sanPham) {
+            $khoaPem = $this->khoaCuaSanPham($sanPham);
+
+            if ($khoaPem === '') {
                 continue;
             }
 
-            $khoaCongKhai = openssl_pkey_get_public(str_replace('\\n', "\n", (string) $khoaPem));
+            $khoaCongKhai = openssl_pkey_get_public(str_replace('\\n', "\n", $khoaPem));
 
             if ($khoaCongKhai !== false
                 && openssl_verify($phanDau.'.'.$phanNoiDung, $chuKy, $khoaCongKhai, OPENSSL_ALGO_SHA256) === 1) {
@@ -79,26 +86,66 @@ class XacThucBanQuyen
     }
 
     /**
-     * Public key của từng sản phẩm được dùng bộ soạn: sản phẩm chính và các sản phẩm khai báo thêm.
+     * Mã sản phẩm trong claim "aud" (chuỗi hoặc mảng), chỉ giữ mã hợp lệ để không gọi vi-sos với dữ liệu lạ.
      *
-     * @return array<string, string|null>
+     * @param  array<string, mixed>  $claims
+     * @return list<string>
      */
-    private function khoaTheoSanPham(): array
+    private function cacSanPham(array $claims): array
     {
-        return [
-            (string) config('license.product') => config('license.public_key'),
-            ...(array) config('license.san_pham_khac', []),
-        ];
+        return array_values(array_filter(
+            (array) ($claims['aud'] ?? []),
+            fn (mixed $sanPham): bool => is_string($sanPham) && preg_match('/^[a-z0-9][a-z0-9_-]{0,99}$/', $sanPham) === 1,
+        ));
     }
 
     /**
-     * @param  array<string, mixed>  $claims
+     * Public key PEM của sản phẩm: khai báo trong config nếu có, không thì lấy từ vi-sos (cache 1 ngày,
+     * sản phẩm vi-sos không biết thì nhớ 10 phút để không gọi lại liên tục). Chuỗi rỗng khi không có khóa.
      */
-    private function dungSanPham(array $claims, string $sanPham): bool
+    private function khoaCuaSanPham(string $sanPham): string
     {
-        $aud = $claims['aud'] ?? null;
+        $khoaCauHinh = $sanPham === config('license.product')
+            ? config('license.public_key')
+            : (config('license.san_pham_khac', [])[$sanPham] ?? null);
 
-        return is_array($aud) ? in_array($sanPham, $aud, true) : $aud === $sanPham;
+        if (is_string($khoaCauHinh) && trim($khoaCauHinh) !== '') {
+            return $khoaCauHinh;
+        }
+
+        $khoaCache = 'ban_quyen.khoa.'.$sanPham;
+        $khoa = Cache::get($khoaCache);
+
+        if (is_string($khoa)) {
+            return $khoa;
+        }
+
+        $khoa = $this->layKhoaTuViSos($sanPham);
+        Cache::put($khoaCache, $khoa, $khoa === '' ? now()->addMinutes(10) : now()->addDay());
+
+        return $khoa;
+    }
+
+    private function layKhoaTuViSos(string $sanPham): string
+    {
+        try {
+            $phanHoi = Http::acceptJson()
+                ->connectTimeout(5)
+                ->timeout(10)
+                ->get(config('license.may_chu').'/api/license/public-key/'.$sanPham);
+        } catch (Throwable) {
+            return '';
+        }
+
+        if (! $phanHoi->successful()
+            || $phanHoi->json('product') !== $sanPham
+            || $phanHoi->json('issuer') !== config('license.issuer')) {
+            return '';
+        }
+
+        $khoa = $phanHoi->json('public_key');
+
+        return is_string($khoa) && str_contains($khoa, 'PUBLIC KEY') ? $khoa : '';
     }
 
     /**

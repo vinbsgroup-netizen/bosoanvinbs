@@ -3,6 +3,7 @@
 namespace Tests\Feature\Api;
 
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\Http;
 use Tests\TestCase;
 
 class XacThucBanQuyenTest extends TestCase
@@ -16,10 +17,39 @@ class XacThucBanQuyenTest extends TestCase
             ->assertJsonPath('ma_giay_phep', 'Văn phòng A');
     }
 
-    public function test_a_license_for_another_product_is_rejected(): void
+    public function test_a_product_unknown_to_vi_sos_is_rejected(): void
     {
+        Http::fake(['vi-sos.com/api/license/public-key/dotary' => Http::response(['message' => 'Không tìm thấy sản phẩm.'], 404)]);
+
         $this->getJson('/api/v1/cau-hinh', $this->banQuyenHeaders('Văn phòng A', ['aud' => 'dotary']))
             ->assertUnauthorized();
+    }
+
+    public function test_the_public_key_of_another_product_is_fetched_from_vi_sos_once(): void
+    {
+        $headers = $this->banQuyenHeaders('Văn phòng D', ['aud' => 'dotary']);
+        Http::fake(['vi-sos.com/api/license/public-key/dotary' => Http::response([
+            'product' => 'dotary',
+            'issuer' => 'vi-sos.com',
+            'public_key' => config('license.public_key'),
+        ])]);
+
+        $this->getJson('/api/v1/cau-hinh', $headers)->assertOk()->assertJsonPath('ma_giay_phep', 'Văn phòng D');
+        $this->getJson('/api/v1/cau-hinh', $headers)->assertOk();
+
+        Http::assertSentCount(1);
+    }
+
+    public function test_a_key_from_vi_sos_for_another_product_is_not_trusted(): void
+    {
+        $headers = $this->banQuyenHeaders('Văn phòng D', ['aud' => 'dotary']);
+        Http::fake(['vi-sos.com/api/license/public-key/dotary' => Http::response([
+            'product' => 'vinbs',
+            'issuer' => 'vi-sos.com',
+            'public_key' => config('license.public_key'),
+        ])]);
+
+        $this->getJson('/api/v1/cau-hinh', $headers)->assertUnauthorized();
     }
 
     public function test_a_license_for_another_product_declared_in_the_config_is_accepted(): void

@@ -9,8 +9,11 @@ return [
     |
     | Khách gửi token bản quyền của văn phòng (lấy từ vi-sos) trong header Authorization.
     | Token phải được ký bằng khóa riêng của sản phẩm trên vi-sos, và gói phải có chức năng "bo_soan".
+    | Public key của sản phẩm được lấy tự động từ vi-sos theo claim "aud": không cần khai báo gì trong .env.
     |
     */
+    'may_chu' => rtrim((string) env('LICENSE_SERVER_URL', 'https://vi-sos.com'), '/'),
+
     'product' => env('LICENSE_PRODUCT', 'vinbs'),
 
     'issuer' => env('LICENSE_ISSUER', 'vi-sos.com'),
@@ -18,14 +21,14 @@ return [
     'chuc_nang' => 'bo_soan',
 
     /*
-    | Public key RS256 của sản phẩm (không phải bí mật). Ghi trên một dòng với "\n" thay cho xuống dòng.
+    | Không bắt buộc: ghim sẵn public key RS256 của sản phẩm chính thay cho lấy từ vi-sos.
+    | Ghi trên một dòng với "\n" thay cho xuống dòng.
     */
     'public_key' => env('LICENSE_PUBLIC_KEY'),
 
     /*
-    | Sản phẩm vi-sos khác được dùng bộ soạn (ví dụ phần mềm "dotary"), mỗi sản phẩm ký token bằng khóa riêng.
-    | Khai báo LICENSE_SAN_PHAM_KHAC=dotary và LICENSE_PUBLIC_KEY_DOTARY=... (cùng định dạng LICENSE_PUBLIC_KEY).
-    | Gói của văn phòng trên vi-sos vẫn phải có chức năng "bo_soan".
+    | Không bắt buộc: ghim sẵn public key của sản phẩm khác (LICENSE_SAN_PHAM_KHAC=dotary,
+    | LICENSE_PUBLIC_KEY_DOTARY=...). Bỏ trống thì khóa được lấy từ vi-sos.
     */
     'san_pham_khac' => array_reduce(
         array_filter(array_map('trim', explode(',', (string) env('LICENSE_SAN_PHAM_KHAC', '')))),
