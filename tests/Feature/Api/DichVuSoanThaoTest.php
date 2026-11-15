@@ -2,160 +2,137 @@
 
 namespace Tests\Feature\Api;
 
-use Illuminate\Http\Client\ConnectionException;
-use Illuminate\Http\Client\Request as YeuCauDichVu;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Http;
+use Illuminate\Testing\TestResponse;
 use Tests\TestCase;
+use Tests\Unit\Services\ChuyenDoi\DocxTongHop;
 
+/**
+ * Mở RTF/DOCX/văn bản thuần và xuất RTF đều chạy trong bo-soan: không yêu cầu nào được gửi ra ngoài.
+ */
 class DichVuSoanThaoTest extends TestCase
 {
-    private const DICH_VU = 'http://dich-vu-soan.test/api/documenteditor/';
-
-    private const DOC_TO_PDF = 'http://doc-to-pdf.test/api/documenteditorservice/DocToPDF';
-
-    private const SFDT = '{"sections":[{"blocks":[]}]}';
-
     protected function setUp(): void
     {
         parent::setUp();
 
-        config(['bo_soan.dich_vu_syncfusion' => self::DICH_VU, 'bo_soan.doc_to_pdf' => self::DOC_TO_PDF]);
         Http::preventStrayRequests();
     }
 
-    private function fileDocx(): UploadedFile
+    private function fileDocx(string $chu = 'Hợp đồng mua bán'): UploadedFile
     {
-        return UploadedFile::fake()->createWithContent('hop-dong.docx', "PK\x03\x04noi-dung-docx");
+        $docx = DocxTongHop::voiBody('<w:p><w:r><w:rPr><w:b/></w:rPr><w:t>'.$chu.'</w:t></w:r></w:p>')->noiDung();
+
+        return UploadedFile::fake()->createWithContent('hop-dong.docx', $docx);
     }
 
-    public function test_opening_a_word_file_forwards_it_to_the_configured_import_service(): void
+    public function test_a_word_file_opens_without_any_service(): void
     {
-        Http::fake([self::DICH_VU.'Import' => Http::response(self::SFDT)]);
-
-        $this->post('/api/documenteditor/import-vinbs', [
+        $phanHoi = $this->post('/api/documenteditor/import-vinbs', [
             'files' => $this->fileDocx(),
             'document_editor_service_url' => 'http://may-chu-khac.test/',
-        ])->assertOk()->assertContent(self::SFDT);
+        ])->assertOk()->assertHeader('Content-Type', 'application/json; charset=utf-8');
 
-        Http::assertSent(fn (YeuCauDichVu $yeuCau) => $yeuCau->url() === self::DICH_VU.'Import' && $yeuCau->isMultipart());
-        Http::assertSentCount(1);
+        $this->assertContains('Hợp đồng mua bán', $this->chuCacDoan($phanHoi));
+        $this->assertTrue($phanHoi->json('sections.0.blocks.0.inlines.0.characterFormat.bold'));
+        Http::assertNothingSent();
     }
 
-    public function test_a_plain_text_file_is_forwarded_to_the_import_service(): void
+    public function test_a_damaged_word_file_is_rejected_with_a_readable_message(): void
     {
-        Http::fake([self::DICH_VU.'Import' => Http::response(self::SFDT)]);
+        $this->post('/api/documenteditor/import-vinbs', ['files' => UploadedFile::fake()->createWithContent('hong.docx', "PK\x03\x04khong-phai-zip")])
+            ->assertUnprocessable();
+    }
 
-        $this->post('/api/documenteditor/import-vinbs', ['files' => UploadedFile::fake()->createWithContent('ghi-chu.txt', 'Xin chào')])
+    public function test_an_old_word_97_file_asks_to_save_it_as_docx(): void
+    {
+        $this->post('/api/documenteditor/import-vinbs', ['files' => UploadedFile::fake()->createWithContent('cu.doc', "\xD0\xCF\x11\xE0\xA1\xB1\x1A\xE1noi-dung")])
+            ->assertUnprocessable()
+            ->assertContent('File Word 97–2003 (.doc) chưa mở được: mở bằng Word, lưu thành .docx rồi mở lại.');
+    }
+
+    public function test_a_plain_text_file_opens_one_paragraph_per_line(): void
+    {
+        $phanHoi = $this->post('/api/documenteditor/import-vinbs', ['files' => UploadedFile::fake()->createWithContent('ghi-chu.txt', "Xin chào\r\nDòng hai")])
+            ->assertOk();
+
+        $this->assertSame(['Xin chào', 'Dòng hai'], $this->chuCacDoan($phanHoi));
+    }
+
+    /**
+     * Chữ của tất cả đoạn trong SFDT trả về, theo thứ tự.
+     *
+     * @return list<string>
+     */
+    private function chuCacDoan(TestResponse $phanHoi): array
+    {
+        $cacDoan = [];
+
+        foreach ($phanHoi->json('sections') as $section) {
+            foreach ($section['blocks'] ?? [] as $khoi) {
+                $cacDoan[] = implode('', array_column($khoi['inlines'] ?? [], 'text'));
+            }
+        }
+
+        return $cacDoan;
+    }
+
+    public function test_an_rtf_with_vietnamese_written_in_raw_utf8_opens_without_any_service(): void
+    {
+        $rtf = '{\rtf1\ansi\f0 Bên A: Nguyễn Văn An\par}';
+
+        $phanHoi = $this->post('/api/documenteditor/import-vinbs', ['files' => UploadedFile::fake()->createWithContent('hop-dong.rtf', $rtf)])
             ->assertOk()
-            ->assertContent(self::SFDT);
+            ->assertHeader('Content-Type', 'application/json; charset=utf-8');
 
-        Http::assertSent(fn (YeuCauDichVu $yeuCau) => $yeuCau->url() === self::DICH_VU.'Import');
+        $this->assertContains('Bên A: Nguyễn Văn An', $this->chuCacDoan($phanHoi));
+        Http::assertNothingSent();
     }
 
-    public function test_vietnamese_written_into_an_rtf_template_reaches_the_service_as_rtf_unicode(): void
+    public function test_an_ansi_rtf_with_unicode_escapes_opens_with_vietnamese_text(): void
     {
-        Http::fake([self::DICH_VU.'Import' => Http::response(self::SFDT)]);
-        $rtf = '{\rtf1\ansi\f0 Bên A: Nguyễn Văn 𝐀\par}';
+        $rtf = str_replace('|', chr(92), "{|rtf1|ansi|ansicpg1252|uc1 Caf\xE9 Nguy|u7877?n|par}");
 
-        $this->post('/api/documenteditor/import-vinbs', ['files' => UploadedFile::fake()->createWithContent('hop-dong.rtf', $rtf)])
+        $phanHoi = $this->post('/api/documenteditor/import-vinbs', ['files' => UploadedFile::fake()->createWithContent('cu.rtf', $rtf)])
             ->assertOk();
 
-        // "|" thay cho dấu "\" của RTF; ký tự 4 byte (𝐀) thành cặp surrogate.
-        $rtfDaMaHoa = str_replace('|', '\\', '{|rtf1|ansi|f0 B|u234?n A: Nguy|u7877?n V|u259?n |u-10187?|u-9216?|par}');
-
-        Http::assertSent(fn (YeuCauDichVu $yeuCau) => $this->tepDaGui($yeuCau) === $rtfDaMaHoa);
-    }
-
-    public function test_an_ansi_rtf_is_forwarded_unchanged(): void
-    {
-        Http::fake([self::DICH_VU.'Import' => Http::response(self::SFDT)]);
-        $rtfAnsi = "{\\rtf1\\ansi\\ansicpg1252 Caf\xE9\\par}";
-
-        $this->post('/api/documenteditor/import-vinbs', ['files' => UploadedFile::fake()->createWithContent('cu.rtf', $rtfAnsi)])
-            ->assertOk();
-
-        Http::assertSent(fn (YeuCauDichVu $yeuCau) => $this->tepDaGui($yeuCau) === $rtfAnsi);
+        $this->assertContains('Café Nguyễn', $this->chuCacDoan($phanHoi));
     }
 
     public function test_rtf_documents_joined_together_open_as_one_whole_document(): void
     {
-        $sfdtDieuKhoan = fn (string $chu, string $kieu): array => [
-            'sections' => [[
-                'blocks' => [['paragraphFormat' => ['listFormat' => ['listId' => 0]], 'inlines' => [['text' => $chu]]]],
-                'sectionFormat' => new \stdClass,
-            ]],
-            'styles' => [['name' => 'Normal'], ['name' => $kieu]],
-            'lists' => [['listId' => 0, 'abstractListId' => 0]],
-            'abstractLists' => [['abstractListId' => 0, 'levels' => []]],
-        ];
-        Http::fake([self::DICH_VU.'Import' => fn (YeuCauDichVu $yeuCau) => str_contains($this->tepDaGui($yeuCau), 'Dieu 1')
-            ? Http::response($sfdtDieuKhoan('Điều 1', 'Tiêu đề 1'))
-            : Http::response($sfdtDieuKhoan('Điều 2', 'Tiêu đề 2'))]);
         // Hợp đồng V3 của dotary nối RTF của từng điều khoản; "\}" trong điều khoản đầu là ngoặc đã thoát.
         $rtfNoi = '{\rtf1\ansi Dieu 1 \} ghi chu\par}'."\r\n".'{\rtf1\ansi Dieu 2\par}';
 
         $phanHoi = $this->post('/api/documenteditor/import-vinbs', ['files' => UploadedFile::fake()->createWithContent('hop-dong.rtf', $rtfNoi)])
-            ->assertOk()
-            ->assertSee('"sectionFormat":{}', false);
+            ->assertOk();
 
-        $khoi = $phanHoi->json('sections.0.blocks');
         $this->assertCount(1, $phanHoi->json('sections'));
-        $this->assertSame(['Điều 1', 'Điều 2'], array_column(array_column(array_column($khoi, 'inlines'), 0), 'text'));
-        $this->assertSame([0, 1], array_column(array_column(array_column($khoi, 'paragraphFormat'), 'listFormat'), 'listId'));
-        $this->assertSame([['listId' => 0, 'abstractListId' => 0], ['listId' => 1, 'abstractListId' => 1]], $phanHoi->json('lists'));
-        $this->assertSame(['Normal', 'Tiêu đề 1', 'Tiêu đề 2'], array_column($phanHoi->json('styles'), 'name'));
-        Http::assertSentCount(2);
+        $cacDoan = array_values(array_filter($this->chuCacDoan($phanHoi), fn (string $chu): bool => $chu !== ''));
+        $this->assertSame(['Dieu 1 } ghi chu', 'Dieu 2'], $cacDoan);
     }
 
-    private function tepDaGui(YeuCauDichVu $yeuCau): ?string
+    public function test_a_broken_rtf_still_opens_instead_of_failing(): void
     {
-        return collect($yeuCau->data())->firstWhere('name', 'files')['contents'] ?? null;
+        $this->post('/api/documenteditor/import-vinbs', ['files' => UploadedFile::fake()->createWithContent('hong.rtf', '{\rtf1\ansi Noi dung bi cat {\b dam')])
+            ->assertOk()
+            ->assertJsonStructure(['sections']);
     }
 
     public function test_a_file_that_is_not_word_rtf_or_text_is_rejected(): void
     {
         $this->post('/api/documenteditor/Import', ['files' => UploadedFile::fake()->create('anh.png', 10)])
             ->assertUnprocessable()
-            ->assertContent('Chỉ mở được file Word (.doc, .docx), RTF hoặc văn bản (.txt).');
+            ->assertContent('Chỉ mở được file Word (.docx), RTF hoặc văn bản (.txt).');
 
         Http::assertNothingSent();
     }
 
-    public function test_an_unreachable_import_service_returns_bad_gateway(): void
-    {
-        Http::fake([self::DICH_VU.'Import' => fn () => throw new ConnectionException('Hết thời gian chờ.')]);
-
-        $this->post('/api/documenteditor/Import', ['files' => $this->fileDocx()])
-            ->assertStatus(502)
-            ->assertContent('Không kết nối được dịch vụ soạn thảo.');
-    }
-
-    public function test_an_import_service_error_returns_bad_gateway(): void
-    {
-        Http::fake([self::DICH_VU.'Import' => Http::response('Lỗi máy chủ', 500)]);
-
-        $this->post('/api/documenteditor/Import', ['files' => $this->fileDocx()])
-            ->assertStatus(502)
-            ->assertContent('Dịch vụ soạn thảo không xử lý được yêu cầu.');
-    }
-
-    public function test_formatted_paste_is_forwarded_with_its_body(): void
-    {
-        Http::fake([self::DICH_VU.'SystemClipboard' => Http::response(self::SFDT)]);
-        $noiDungDan = ['content' => '<p>Đoạn dán</p>', 'type' => '.html'];
-
-        $this->postJson('/api/documenteditor/SystemClipboard', $noiDungDan)
-            ->assertOk()
-            ->assertContent(self::SFDT);
-
-        Http::assertSent(fn (YeuCauDichVu $yeuCau) => $yeuCau->url() === self::DICH_VU.'SystemClipboard' && $yeuCau->data() === $noiDungDan);
-    }
-
     public function test_a_page_on_another_domain_may_call_the_editor_services(): void
     {
-        // Bộ soạn nhúng trong dotary gọi thẳng dịch vụ của bo-soan; dán giữ định dạng gửi JSON nên trình duyệt hỏi trước (preflight).
-        $this->call('OPTIONS', '/api/documenteditor/SystemClipboard', server: [
+        // Bộ soạn nhúng trong dotary gọi thẳng dịch vụ mở file của bo-soan từ tên miền của dotary.
+        $this->call('OPTIONS', '/api/documenteditor/import-vinbs', server: [
             'HTTP_ORIGIN' => 'https://dotary.example.com',
             'HTTP_ACCESS_CONTROL_REQUEST_METHOD' => 'POST',
             'HTTP_ACCESS_CONTROL_REQUEST_HEADERS' => 'content-type',
@@ -164,23 +141,31 @@ class DichVuSoanThaoTest extends TestCase
         Http::assertNothingSent();
     }
 
-    public function test_an_action_outside_the_allowed_list_is_not_forwarded(): void
+    public function test_paste_and_pdf_are_no_longer_sent_to_a_server_service(): void
     {
-        $this->postJson('/api/documenteditor/XoaDuLieu', [])->assertNotFound();
+        // Dán giữ định dạng và tạo PDF nay chạy trên trình duyệt; các đường chuyển tiếp sang .NET đã bỏ.
+        $this->postJson('/api/documenteditor/SystemClipboard', ['content' => '<p>Đoạn dán</p>', 'type' => '.html'])->assertNotFound();
+        $this->post('/api/get-file', ['file' => $this->fileDocx()])->assertNotFound();
 
         Http::assertNothingSent();
     }
 
-    public function test_a_docx_is_exported_to_rtf_by_the_service(): void
+    public function test_a_docx_is_exported_to_an_rtf_that_opens_back_with_the_same_text(): void
     {
-        Http::fake([self::DICH_VU.'Export' => Http::response('{\rtf1 ^12^\par}', 200, ['Content-Type' => 'application/rtf'])]);
-
-        $this->post('/api/documenteditor/Export', ['files' => $this->fileDocx(), 'filename' => 'khac.html'])
+        // Điều khoản V3 của dotary lưu RTF có mã tiểu mục ^12^; máy chủ dotary điền mã này ngay trong RTF.
+        $rtf = $this->post('/api/documenteditor/Export', ['files' => $this->fileDocx('Điều 1: ^12^ thỏa thuận'), 'filename' => 'khac.html'])
             ->assertOk()
-            ->assertContent('{\rtf1 ^12^\par}');
+            ->assertHeader('Content-Type', 'application/rtf')
+            ->getContent();
 
-        Http::assertSent(fn (YeuCauDichVu $yeuCau) => $yeuCau->url() === self::DICH_VU.'Export'
-            && collect($yeuCau->data())->firstWhere('name', 'filename')['contents'] === 'van-ban.rtf');
+        $this->assertStringStartsWith('{\rtf1', $rtf);
+        $this->assertStringContainsString('^12^', $rtf);
+        $this->assertDoesNotMatchRegularExpression('/[^\x00-\x7F]/', $rtf);
+
+        $moLai = $this->post('/api/documenteditor/import-vinbs', ['files' => UploadedFile::fake()->createWithContent('dieu-khoan.rtf', $rtf)])
+            ->assertOk();
+        $this->assertContains('Điều 1: ^12^ thỏa thuận', $this->chuCacDoan($moLai));
+        Http::assertNothingSent();
     }
 
     public function test_rtf_export_rejects_a_file_that_is_not_docx(): void
@@ -190,34 +175,5 @@ class DichVuSoanThaoTest extends TestCase
             ->assertContent('Cần gửi file DOCX.');
 
         Http::assertNothingSent();
-    }
-
-    public function test_a_docx_is_converted_to_pdf_base64_without_quotes(): void
-    {
-        Http::fake([self::DOC_TO_PDF => Http::response('"JVBERi0xLjQ="')]);
-
-        $this->post('/api/get-file', ['file' => $this->fileDocx()])
-            ->assertOk()
-            ->assertContent('JVBERi0xLjQ=');
-
-        Http::assertSent(fn (YeuCauDichVu $yeuCau) => $yeuCau->url() === self::DOC_TO_PDF && $yeuCau->isMultipart());
-    }
-
-    public function test_pdf_conversion_rejects_a_file_that_is_not_docx(): void
-    {
-        $this->post('/api/get-file', ['file' => UploadedFile::fake()->createWithContent('blob', 'khong phai docx')])
-            ->assertUnprocessable()
-            ->assertContent('Cần gửi file DOCX.');
-
-        Http::assertNothingSent();
-    }
-
-    public function test_an_unreachable_pdf_service_returns_bad_gateway(): void
-    {
-        Http::fake([self::DOC_TO_PDF => fn () => throw new ConnectionException('Hết thời gian chờ.')]);
-
-        $this->post('/api/get-file', ['file' => $this->fileDocx()])
-            ->assertStatus(502)
-            ->assertContent('Không kết nối được dịch vụ chuyển PDF.');
     }
 }

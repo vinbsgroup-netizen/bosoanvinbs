@@ -29,8 +29,4 @@ Route::middleware('throttle:60,1')->group(function () {
     Route::post('/documenteditor/Import', [DichVuSoanThaoController::class, 'nhapFile'])->name('api.soan-thao.import');
     Route::post('/documenteditor/import-vinbs', [DichVuSoanThaoController::class, 'nhapFile'])->name('api.soan-thao.import-vinbs');
     Route::post('/documenteditor/Export', [DichVuSoanThaoController::class, 'xuatRtf'])->name('api.soan-thao.xuat-rtf');
-    Route::post('/documenteditor/{hanhDong}', [DichVuSoanThaoController::class, 'chuyenTiep'])
-        ->whereIn('hanhDong', DichVuSoanThaoController::HANH_DONG_JSON)
-        ->name('api.soan-thao.chuyen-tiep');
-    Route::post('/get-file', [DichVuSoanThaoController::class, 'docxSangPdf'])->name('api.soan-thao.pdf');
 });

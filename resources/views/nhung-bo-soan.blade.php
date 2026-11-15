@@ -5,9 +5,9 @@
  * Đặt <script src="https://<bo-soan>/api/nhung"></script> ngay sau phần tử #container (và #documenteditor_titlebar nếu có).
  * Script kế tiếp của trang đã dùng được window.container.documentEditor.
  *
- * Mở file và dán giữ định dạng gọi dịch vụ của bo-soan, trừ khi trang đã tự đặt
+ * Mở file gọi dịch vụ của bo-soan, trừ khi trang đã tự đặt
  * window.syncfusionOfficeKitDocumentServiceUrl hoặc window.syncfusionOfficeKitImportUrl.
- * In, xuất PDF, QR và logo vẫn gọi api/get-file, api/document-export-* của chính trang nhúng.
+ * In, tạo PDF và dán giữ định dạng chạy ngay trên trình duyệt. QR và logo vẫn gọi api/document-export-* của chính trang nhúng.
  */
 (function () {
     var phienBan = @json($phienBan);

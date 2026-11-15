@@ -3,38 +3,39 @@
 namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
-use Illuminate\Http\Client\ConnectionException;
-use Illuminate\Http\Client\Pool;
-use Illuminate\Http\Client\Response as PhanHoiDichVu;
+use App\Services\ChuyenDoi\Docx\LoiDocx;
+use App\Services\ChuyenDoi\DocxSangSfdt;
+use App\Services\ChuyenDoi\RtfSangSfdt;
+use App\Services\ChuyenDoi\SfdtRtf\LoiSfdt;
+use App\Services\ChuyenDoi\SfdtSangRtf;
+use App\Services\ChuyenDoi\VanBanThuanSangSfdt;
 use Illuminate\Http\Request;
 use Illuminate\Http\Response;
 use Illuminate\Http\UploadedFile;
-use Illuminate\Support\Facades\Http;
-use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Validator;
 
 /**
- * Chuyển tiếp yêu cầu của bộ soạn Office kit (Syncfusion) sang dịch vụ .NET DocumentEditor và DocToPDF.
+ * Dịch vụ của bộ soạn Office kit (Syncfusion): mở RTF, DOCX, văn bản thuần (đổi sang SFDT) và xuất RTF.
+ * Mọi chuyển đổi chạy ngay trong bo-soan (app/Services/ChuyenDoi), không gọi dịch vụ .NET nào;
+ * In, tạo PDF và dán giữ định dạng chạy trên trình duyệt (public/office-kit/office-kit.js).
  *
- * Trang soạn gọi cùng tên miền nên không vướng CORS hay mixed content (trang HTTPS, dịch vụ HTTP).
- * Địa chỉ dịch vụ chỉ lấy từ cấu hình, không nhận từ client, để endpoint không bị dùng gọi tới máy chủ khác.
- * Office kit đọc phản hồi dạng văn bản, nên lỗi cũng trả về văn bản thường.
+ * Office kit đọc phản hồi dạng văn bản, nên lỗi cũng trả về văn bản thường. File chỉ được đọc, không lưu lại.
  */
 class DichVuSoanThaoController extends Controller
 {
-    /**
-     * Thao tác JSON của dịch vụ .NET được phép chuyển tiếp.
-     *
-     * @var list<string>
-     */
-    public const HANH_DONG_JSON = ['SystemClipboard', 'RestrictEditing', 'SpellCheck', 'SpellCheckByPage'];
+    /** Chữ ký file OLE (Word 97–2003 .doc). */
+    private const DAU_FILE_DOC = "\xD0\xCF\x11\xE0\xA1\xB1\x1A\xE1";
 
     /**
-     * Mở file Word (.doc, .docx), RTF hoặc văn bản thuần (.txt, UTF-8): dịch vụ Import đổi sang SFDT để bộ soạn mở.
-     * File chỉ được chuyển tiếp, không lưu lại trên máy chủ.
+     * Mở file Word (.docx), RTF hoặc văn bản thuần (.txt, UTF-8): đổi sang SFDT để bộ soạn mở.
+     * Loại file nhận theo nội dung (trình duyệt có thể gửi blob không đúng đuôi).
      */
-    public function nhapFile(Request $request): Response
-    {
+    public function nhapFile(
+        Request $request,
+        RtfSangSfdt $rtfSangSfdt,
+        DocxSangSfdt $docxSangSfdt,
+        VanBanThuanSangSfdt $vanBanThuanSangSfdt,
+    ): Response {
         $tep = $request->file('files') ?? $request->file('file');
 
         $kiemTra = Validator::make(['tep' => $tep], [
@@ -42,65 +43,51 @@ class DichVuSoanThaoController extends Controller
         ]);
 
         if ($kiemTra->fails()) {
-            return response('Chỉ mở được file Word (.doc, .docx), RTF hoặc văn bản (.txt).', 422);
+            return response('Chỉ mở được file Word (.docx), RTF hoặc văn bản (.txt).', 422);
         }
 
         $noiDung = $tep->get();
 
         if (str_starts_with(ltrim($noiDung), '{\rtf')) {
-            $taiLieu = $this->tachTaiLieuRtf($noiDung);
-
-            if (count($taiLieu) > 1) {
-                return $this->nhapNhieuTaiLieuRtf(array_map(fn (string $rtf): string => $this->maHoaRtfUnicode($rtf), $taiLieu));
-            }
-
-            $noiDung = $this->maHoaRtfUnicode($noiDung);
+            return $this->traSfdt($this->moRtf(ltrim($noiDung), $rtfSangSfdt));
         }
 
-        return $this->goiDichVu('Import', fn () => Http::connectTimeout(5)
-            ->timeout(120)
-            ->attach('files', $noiDung, $tep->getClientOriginalName() ?: 'van-ban.docx')
-            ->post(config('bo_soan.dich_vu_syncfusion').'Import'));
+        if (str_starts_with($noiDung, "PK\x03\x04")) {
+            try {
+                return $this->traSfdt($docxSangSfdt->chuyen($noiDung));
+            } catch (LoiDocx $loi) {
+                return response($loi->getMessage(), 422);
+            }
+        }
+
+        if (str_starts_with($noiDung, self::DAU_FILE_DOC) || strtolower($tep->getClientOriginalExtension()) === 'doc') {
+            return response('File Word 97–2003 (.doc) chưa mở được: mở bằng Word, lưu thành .docx rồi mở lại.', 422);
+        }
+
+        return $this->traSfdt($vanBanThuanSangSfdt->chuyen($noiDung));
     }
 
     /**
-     * Phần mềm khách (hợp đồng V3 của dotary) dựng văn bản bằng cách nối RTF của từng điều khoản: {\rtf1 ...}{\rtf1 ...}.
-     * Dịch vụ Import chỉ đọc tài liệu đầu tiên, nên mở từng tài liệu rồi gộp SFDT theo đúng thứ tự.
-     *
-     * @param  list<string>  $taiLieu
+     * RTF đổi sang SFDT ngay trong bo-soan. Phần mềm khách (hợp đồng V3 của dotary) dựng văn bản bằng cách nối RTF
+     * của từng điều khoản {\rtf1 ...}{\rtf1 ...}: mở từng tài liệu rồi gộp SFDT theo đúng thứ tự.
+     * RTF hỏng (thiếu ngoặc đóng) không tách được thì đọc cả chuỗi như một tài liệu.
      */
-    private function nhapNhieuTaiLieuRtf(array $taiLieu): Response
+    private function moRtf(string $noiDung, RtfSangSfdt $rtfSangSfdt): string
     {
-        $url = config('bo_soan.dich_vu_syncfusion').'Import';
+        $taiLieu = $this->tachTaiLieuRtf($noiDung);
 
-        $cacPhanHoi = Http::pool(fn (Pool $pool): array => array_map(
-            fn (string $rtf) => $pool->connectTimeout(5)->timeout(120)->attach('files', $rtf, 'van-ban.rtf')->post($url),
-            $taiLieu,
-        ), concurrency: 6);
-        ksort($cacPhanHoi);
-
-        $cacSfdt = [];
-
-        foreach ($cacPhanHoi as $thuTu => $phanHoi) {
-            if (! $phanHoi instanceof PhanHoiDichVu) {
-                Log::warning('Không kết nối được dịch vụ soạn thảo.', ['hanh_dong' => 'Import', 'tai_lieu' => $thuTu]);
-
-                return response('Không kết nối được dịch vụ soạn thảo.', 502);
-            }
-
-            $sfdt = json_decode($phanHoi->body());
-
-            if (! $phanHoi->successful() || ! is_object($sfdt) || ! isset($sfdt->sections)) {
-                Log::warning('Dịch vụ soạn thảo trả lỗi.', ['hanh_dong' => 'Import', 'tai_lieu' => $thuTu, 'trang_thai' => $phanHoi->status()]);
-
-                return response('Dịch vụ soạn thảo không xử lý được yêu cầu.', 502);
-            }
-
-            $cacSfdt[] = $sfdt;
+        if (count($taiLieu) <= 1) {
+            return $rtfSangSfdt->chuyen($taiLieu[0] ?? $noiDung);
         }
 
-        return response(json_encode($this->gopSfdt($cacSfdt), JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES | JSON_PRESERVE_ZERO_FRACTION), 200)
-            ->header('Content-Type', 'application/json; charset=utf-8');
+        $cacSfdt = array_map(fn (string $rtf): object => json_decode($rtfSangSfdt->chuyen($rtf)), $taiLieu);
+
+        return (string) json_encode($this->gopSfdt($cacSfdt), JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES | JSON_PRESERVE_ZERO_FRACTION);
+    }
+
+    private function traSfdt(string $sfdt): Response
+    {
+        return response($sfdt, 200)->header('Content-Type', 'application/json; charset=utf-8');
     }
 
     /**
@@ -210,32 +197,10 @@ class DichVuSoanThaoController extends Controller
     }
 
     /**
-     * Phần mềm khách ghép chữ vào mẫu RTF (str_replace) nên RTF có thể chứa thẳng byte UTF-8, trong khi dịch vụ Import
-     * đọc RTF theo bảng mã ANSI: "Nguyễn" thành "Nguyá»…n". Đổi mọi ký tự ngoài ASCII sang mã \uN? của RTF.
-     * RTF ANSI thật (byte cao không phải UTF-8 hợp lệ) giữ nguyên.
-     */
-    private function maHoaRtfUnicode(string $rtf): string
-    {
-        if (! preg_match('/[^\x00-\x7F]/', $rtf) || ! mb_check_encoding($rtf, 'UTF-8')) {
-            return $rtf;
-        }
-
-        return preg_replace_callback('/[^\x00-\x7F]/u', function (array $kyTu): string {
-            $ma = mb_ord($kyTu[0], 'UTF-8');
-            // \u của RTF là số 16 bit có dấu; ký tự ngoài BMP ghi thành cặp surrogate.
-            $donVi = $ma > 0xFFFF
-                ? [0xD800 + (($ma - 0x10000) >> 10), 0xDC00 + (($ma - 0x10000) & 0x3FF)]
-                : [$ma];
-
-            return implode('', array_map(fn (int $u): string => '\\u'.($u > 32767 ? $u - 65536 : $u).'?', $donVi));
-        }, $rtf);
-    }
-
-    /**
      * Đổi DOCX bộ soạn vừa tạo sang RTF, cho phần mềm khách còn lưu RTF như thời TX (điều khoản V3 của dotary:
      * máy chủ nối RTF các điều khoản và điền ^mã tiểu mục^ ngay trong RTF).
      */
-    public function xuatRtf(Request $request): Response
+    public function xuatRtf(Request $request, DocxSangSfdt $docxSangSfdt, SfdtSangRtf $sfdtSangRtf): Response
     {
         $tep = $request->file('files') ?? $request->file('file');
 
@@ -247,87 +212,14 @@ class DichVuSoanThaoController extends Controller
             return response('File quá lớn.', 422);
         }
 
-        return $this->goiDichVu('Export', fn () => Http::connectTimeout(5)
-            ->timeout(120)
-            ->attach('files', $tep->get(), 'van-ban.docx')
-            ->post(config('bo_soan.dich_vu_syncfusion').'Export', ['filename' => 'van-ban.rtf']));
-    }
-
-    /**
-     * Chuyển tiếp nguyên thân yêu cầu JSON (dán giữ định dạng, bảo vệ tài liệu, kiểm tra chính tả).
-     */
-    public function chuyenTiep(Request $request, string $hanhDong): Response
-    {
-        return $this->goiDichVu($hanhDong, fn () => Http::connectTimeout(5)
-            ->timeout(60)
-            ->withBody($request->getContent(), $request->header('Content-Type', 'application/json'))
-            ->post(config('bo_soan.dich_vu_syncfusion').$hanhDong));
-    }
-
-    /**
-     * In và xuất PDF: nhận file DOCX bộ soạn vừa tạo, trả nội dung PDF dạng base64.
-     */
-    public function docxSangPdf(Request $request): Response
-    {
-        $tep = $request->file('file');
-
-        if (! $tep instanceof UploadedFile || ! $tep->isValid() || ! $this->laFileDocx($tep)) {
-            return response('Cần gửi file DOCX.', 422);
-        }
-
-        if ($tep->getSize() > config('bo_soan.kich_thuoc_file_toi_da') * 1024) {
-            return response('File quá lớn.', 422);
-        }
-
+        // Đi đường mảng (không mã hóa rồi giải mã JSON ở giữa) để văn bản lớn tốn ít bộ nhớ.
         try {
-            $phanHoi = Http::connectTimeout(5)
-                ->timeout(120)
-                ->attach('file', $tep->get(), 'van-ban.docx')
-                ->post(config('bo_soan.doc_to_pdf'));
-        } catch (ConnectionException $loi) {
-            Log::warning('Không kết nối được dịch vụ DocToPDF.', ['loi' => $loi->getMessage()]);
-
-            return response('Không kết nối được dịch vụ chuyển PDF.', 502);
+            $rtf = $sfdtSangRtf->chuyenTuMang($docxSangSfdt->chuyenThanhMang($tep->get()));
+        } catch (LoiDocx|LoiSfdt $loi) {
+            return response($loi->getMessage(), 422);
         }
 
-        $base64 = trim($phanHoi->body(), " \t\n\r\0\x0B\"");
-
-        if (! $phanHoi->successful() || $base64 === '') {
-            Log::warning('Dịch vụ DocToPDF trả lỗi.', ['trang_thai' => $phanHoi->status(), 'noi_dung' => mb_substr($phanHoi->body(), 0, 300)]);
-
-            return response('Không chuyển được văn bản sang PDF.', 502);
-        }
-
-        return response($base64, 200)->header('Content-Type', 'text/plain; charset=utf-8');
-    }
-
-    /**
-     * Gọi dịch vụ .NET và trả nguyên phản hồi; lỗi kết nối hoặc phản hồi rỗng thành 502.
-     *
-     * @param  callable(): PhanHoiDichVu  $goi
-     */
-    private function goiDichVu(string $hanhDong, callable $goi): Response
-    {
-        try {
-            $phanHoi = $goi();
-        } catch (ConnectionException $loi) {
-            Log::warning('Không kết nối được dịch vụ soạn thảo.', ['hanh_dong' => $hanhDong, 'loi' => $loi->getMessage()]);
-
-            return response('Không kết nối được dịch vụ soạn thảo.', 502);
-        }
-
-        if ($phanHoi->serverError() || trim($phanHoi->body()) === '') {
-            Log::warning('Dịch vụ soạn thảo trả lỗi.', [
-                'hanh_dong' => $hanhDong,
-                'trang_thai' => $phanHoi->status(),
-                'noi_dung' => mb_substr($phanHoi->body(), 0, 300),
-            ]);
-
-            return response('Dịch vụ soạn thảo không xử lý được yêu cầu.', 502);
-        }
-
-        return response($phanHoi->body(), $phanHoi->status())
-            ->header('Content-Type', $phanHoi->header('Content-Type') ?: 'application/json; charset=utf-8');
+        return response($rtf, 200)->header('Content-Type', 'application/rtf');
     }
 
     /**
