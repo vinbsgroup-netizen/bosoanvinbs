@@ -25,3 +25,6 @@ _ide_helper.php
 Homestead.json
 Homestead.yaml
 Thumbs.db
+
+# Mã Syncfusion tham khảo (bản demo cũ, có file .map rất lớn)
+/Code

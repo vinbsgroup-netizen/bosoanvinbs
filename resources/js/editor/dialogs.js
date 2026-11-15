@@ -1,4 +1,6 @@
 import { WINDOWS_FONTS } from './fonts';
+import { locateTableSelection, measureColumnWidths, setTableColumnWidth, applyTableAutoFit } from './tableExtensions';
+import { BORDER_PRESETS, applyBorderPreset, applyCellShading } from './tableBorders';
 /**
  * Hộp thoại Phông và Đoạn văn, mở từ mũi tên ở góc nhóm trên tab Trang đầu.
  */
@@ -48,6 +50,104 @@ export const openFontDialog = (editor) => {
         if (v('strike').checked) chain.setStrike(); else chain.unsetStrike();
         if (v('sup').checked) chain.setSuperscript(); else if (v('sub').checked) chain.setSubscript();
         chain.run();
+    });
+};
+
+const PX_PER_CM = 96 / 2.54;
+
+/**
+ * Thuộc tính bảng với ba tab như Syncfusion: Bảng (tự động điều chỉnh, căn chỉnh), Hàng (chiều cao), Ô (độ rộng, căn dọc).
+ */
+export const openTablePropertiesDialog = (editor) => {
+    const location = locateTableSelection(editor.state);
+    if (!location) return;
+    const table = location.table.attrs;
+    const row = editor.getAttributes('tableRow');
+    const columnPx = measureColumnWidths(editor)[location.columnIndex] ?? 100;
+    const cellAttrs = editor.getAttributes('tableCell').verticalAlign !== undefined
+        ? editor.getAttributes('tableCell')
+        : editor.getAttributes('tableHeader');
+    const valign = cellAttrs.verticalAlign ?? 'top';
+    const rowPx = row.height ?? 0;
+    const toCm = (px) => (px / PX_PER_CM).toFixed(2);
+
+    const choose = (name, options, current) => options
+        .map(([value, label]) => `<label class="bs-tp-radio"><input type="radio" name="${name}" value="${value}"${value === current ? ' checked' : ''}> ${label}</label>`)
+        .join('');
+    const panels = [
+        ['table', 'Bảng', `
+            <fieldset><legend>Kích thước</legend>
+                <label><input type="checkbox" data-t="widthOn"${table.width ? ' checked' : ''}> Chiều rộng ưa thích</label>
+                <label>Chiều rộng (cm) <input type="number" min="1" step="0.1" value="${toCm(table.width ?? 0)}" data-t="width"></label>
+            </fieldset>
+            <fieldset><legend>Căn chỉnh</legend>${choose('align', [['left', 'Trái'], ['center', 'Giữa'], ['right', 'Phải']], table.align ?? 'left')}</fieldset>
+            <label>Thụt từ lề trái (cm) <input type="number" step="0.1" value="${toCm(table.indent ?? 0)}" data-t="indent"></label>`],
+        ['row', 'Hàng', `
+            <fieldset><legend>Kích thước</legend>
+                <label><input type="checkbox" data-t="rowOn"${rowPx > 0 ? ' checked' : ''}> Chỉ định chiều cao</label>
+                <label>Chiều cao (cm) <input type="number" min="0.1" step="0.1" value="${toCm(rowPx)}" data-t="row"></label>
+                ${choose('heightRule', [['atLeast', 'Ít nhất'], ['exact', 'Chính xác']], row.heightRule ?? 'atLeast')}
+            </fieldset>
+            <label><input type="checkbox" data-t="allowBreak"${row.allowBreak === false ? '' : ' checked'}> Cho phép hàng ngắt qua trang</label>`],
+        ['column', 'Cột', `
+            <label><input type="checkbox" data-t="colOn" checked> Chiều rộng cột ${location.columnIndex + 1}</label>
+            <label>Chiều rộng (cm) <input type="number" min="0.5" step="0.1" value="${toCm(columnPx)}" data-t="column"></label>`],
+        ['cell', 'Ô', `
+            <fieldset><legend>Căn dọc</legend>${choose('valign', [['top', 'Trên'], ['middle', 'Giữa'], ['bottom', 'Dưới']], valign)}</fieldset>`],
+    ];
+    const body = `<div class="bs-tp-tabs">${panels.map(([id, label], index) => `<button type="button" class="bs-tp-tab${index === 0 ? ' is-active' : ''}" data-tp-tab="${id}">${label}</button>`).join('')}</div>`
+        + panels.map(([id, , html], index) => `<div class="bs-tp-panel" data-tp-panel="${id}"${index === 0 ? '' : ' hidden'}>${html}</div>`).join('');
+
+    const backdrop = shell('Thuộc tính bảng', body, (root) => {
+        const v = (name) => root.querySelector(`[data-t="${name}"]`);
+        const checked = (name) => root.querySelector(`input[name="${name}"]:checked`)?.value;
+        const widthCm = parseFloat(v('width').value) || 0;
+        const indentCm = parseFloat(v('indent').value) || 0;
+        const rowCm = parseFloat(v('row').value) || 0;
+        const columnCm = parseFloat(v('column').value);
+
+        editor.chain().focus().updateAttributes('table', {
+            align: checked('align'),
+            width: v('widthOn').checked && widthCm > 0 ? Math.round(widthCm * PX_PER_CM) : null,
+            indent: indentCm !== 0 ? Math.round(indentCm * PX_PER_CM) : null,
+        }).run();
+        editor.chain().focus().updateAttributes('tableRow', {
+            height: v('rowOn').checked && rowCm > 0 ? Math.round(rowCm * PX_PER_CM) : null,
+            heightRule: checked('heightRule'),
+            allowBreak: v('allowBreak').checked,
+        }).run();
+        if (v('colOn').checked && columnCm > 0) setTableColumnWidth(editor, location.columnIndex, columnCm * PX_PER_CM);
+        editor.chain().focus().setCellAttribute('verticalAlign', checked('valign')).run();
+    });
+
+    backdrop.querySelector('.bs-tp-tabs').addEventListener('click', (event) => {
+        const tab = event.target.closest('[data-tp-tab]');
+        if (!tab) return;
+        backdrop.querySelectorAll('[data-tp-panel]').forEach((panel) => { panel.hidden = panel.dataset.tpPanel !== tab.dataset.tpTab; });
+        backdrop.querySelectorAll('[data-tp-tab]').forEach((button) => button.classList.toggle('is-active', button === tab));
+    });
+};
+
+/**
+ * Đường viền và tô bóng cho ô đang chọn: kiểu nét, độ dày, màu, phạm vi áp dụng và màu nền.
+ */
+export const openBordersShadingDialog = (editor) => {
+    const body = `
+        <label>Kiểu nét <select data-b="style">
+            <option value="solid">Liền</option><option value="dashed">Nét đứt</option><option value="dotted">Chấm</option><option value="double">Đôi</option>
+        </select></label>
+        <label>Độ dày <select data-b="width">${[0.25, 0.5, 0.75, 1, 1.5, 2.25, 3].map((width) => `<option value="${width}"${width === 0.5 ? ' selected' : ''}>${String(width).replace('.', ',')} pt</option>`).join('')}</select></label>
+        <label>Màu viền <input type="color" value="#000000" data-b="color"></label>
+        <fieldset><legend>Áp dụng viền cho</legend>
+            ${BORDER_PRESETS.map(([value, label], index) => `<label class="bs-tp-radio"><input type="radio" name="preset" value="${value}"${index === 0 ? ' checked' : ''}> ${label}</label>`).join('')}
+        </fieldset>
+        <label><input type="checkbox" data-b="shadingOn"> Tô bóng ô</label>
+        <label>Màu tô <input type="color" value="#ffff00" data-b="shading"></label>`;
+    shell('Đường viền và tô bóng', body, (root) => {
+        const v = (name) => root.querySelector(`[data-b="${name}"]`);
+        const preset = root.querySelector('input[name="preset"]:checked').value;
+        applyBorderPreset(editor, preset, { style: v('style').value, width: parseFloat(v('width').value), color: v('color').value });
+        if (v('shadingOn').checked) applyCellShading(editor, v('shading').value);
     });
 };
 

@@ -9,8 +9,8 @@ import Underline from '@tiptap/extension-underline';
 import TextAlign from '@tiptap/extension-text-align';
 import Subscript from '@tiptap/extension-subscript';
 import Superscript from '@tiptap/extension-superscript';
-import { Table, TableRow, TableCell, TableHeader } from '@tiptap/extension-table';
 import Image from '@tiptap/extension-image';
+import { TableWithAlign, TableRowWithHeight, TableCellWithAlign, TableHeaderWithAlign, locateTableSelection, measureColumnWidths, setTableColumnWidth, setTableRowHeightAt, TWIPS_PER_PX } from './tableExtensions';
 import { FontSize } from './fontSize';
 import { downloadDocx } from './exportDocx';
 import { isSfdt, sfdtToTiptapDoc, sfdtHeaderFooter } from './sfdt';
@@ -18,7 +18,8 @@ import { isWordOrRtfBuffer, readWordDocument } from './wordImport';
 import { sanitizeDocument } from './sanitize';
 import { renderIcons } from './icons';
 import { bindWkMenus } from './wkMenus';
-import { openFontDialog, openParagraphDialog } from './dialogs';
+import { openFontDialog, openParagraphDialog, openTablePropertiesDialog, openBordersShadingDialog } from './dialogs';
+import { applyBorderPreset, applyCellShading } from './tableBorders';
 import { renderRibbon } from './ribbon';
 import { bindContextMenu } from './contextMenu';
 import { PageBreakAttribute } from './pageBreak';
@@ -51,10 +52,10 @@ const createEditor = (element) =>
             Subscript,
             Superscript,
             TextAlign.configure({ types: ['heading', 'paragraph'] }),
-            Table.configure({ resizable: true }),
-            TableRow,
-            TableHeader,
-            TableCell,
+            TableWithAlign.configure({ resizable: true }),
+            TableRowWithHeight,
+            TableHeaderWithAlign,
+            TableCellWithAlign,
             Image.configure({ inline: true, allowBase64: true }),
             PageBreakAttribute,
             ParagraphFormat,
@@ -227,6 +228,13 @@ const bindFindBar = (editor, root) => {
     bar.querySelector('[data-action="closeFind"]').addEventListener('click', () => toggleFindBar(root, false));
 };
 
+/* Kiểu viền lấy từ bút vẽ trên ribbon: màu và độ dày; kiểu nét mặc định là liền. */
+const borderSpecFromRibbon = (root) => ({
+    style: 'solid',
+    width: parseFloat(root.querySelector('[data-control="borderWidth"]')?.value) || 0.5,
+    color: root.querySelector('[data-control="borderColor"]')?.value || '#000000',
+});
+
 const bindRibbon = (editor, root) => {
     const chainAction = (command) => () => command(editor.chain().focus()).run();
 
@@ -344,6 +352,10 @@ const bindRibbon = (editor, root) => {
         tableSplit: () => editor.chain().focus().splitCell().run(),
         tableHeader: () => editor.chain().focus().toggleHeaderRow().run(),
         tableDelete: () => editor.chain().focus().deleteTable().run(),
+        tableProperties: () => openTablePropertiesDialog(editor),
+        borderShadingDialog: () => openBordersShadingDialog(editor),
+        tableBorder: (event) => applyBorderPreset(editor, event.currentTarget.dataset.value, borderSpecFromRibbon(root)),
+        tableShading: (event) => applyCellShading(editor, event.currentTarget.dataset.value || null),
         fieldCodes: () => root.classList.add('bs-field-codes'),
         fieldText: () => root.classList.remove('bs-field-codes'),
         insertPageNumber: () => {
@@ -877,7 +889,7 @@ const bindTabGhost = (root) => {
         const ruler = root.querySelector('.bs-ruler');
         if (!ruler) return;
         const ghost = ruler.querySelector('.bs-tab-ghost');
-        const onRuler = event.target.closest('.bs-ruler') && !event.target.closest('[data-hmargin], [data-indent], .bs-tab-stop');
+        const onRuler = event.target.closest('.bs-ruler') && !event.target.closest('[data-hmargin], [data-indent], .bs-tab-stop, .bs-col-stop');
         const x = onRuler ? rulerTextTwip(root, event.clientX) : null;
         if (x === null) {
             ghost?.remove();
@@ -892,9 +904,58 @@ const bindTabGhost = (root) => {
     root.addEventListener('pointerleave', () => root.querySelector('.bs-tab-ghost')?.remove());
 };
 
+/* Vẽ mốc cạnh phải của từng cột trên thước ngang khi con trỏ nằm trong bảng; kéo mốc để đổi độ rộng cột. */
+const renderColumnStops = (root, editor) => {
+    const ruler = root.querySelector('.bs-ruler');
+    if (!ruler) return;
+    ruler.querySelectorAll('.bs-col-stop').forEach((element) => element.remove());
+    const location = locateTableSelection(editor.state);
+    if (!location) return;
+    const widths = measureColumnWidths(editor);
+    const totalTwip = widths.reduce((sum, px) => sum + px * TWIPS_PER_PX, 0);
+    const textWidth = currentPage.widthTwip - currentPage.marginsTwip.left - currentPage.marginsTwip.right;
+    const align = location.table.attrs.align ?? 'left';
+    const offset = align === 'center' ? (textWidth - totalTwip) / 2 : align === 'right' ? textWidth - totalTwip : 0;
+    let edge = currentPage.marginsTwip.left + offset;
+    const stops = widths.map((px, index) => {
+        edge += px * TWIPS_PER_PX;
+        return `<div class="bs-col-stop" data-col-index="${index}" title="Kéo để đổi độ rộng cột ${index + 1}" style="left:${(edge / TWIPS_PER_MM).toFixed(2)}mm"></div>`;
+    });
+    ruler.insertAdjacentHTML('beforeend', stops.join(''));
+};
+
+/* Vẽ mốc đáy của từng hàng trên thước dọc khi con trỏ nằm trong bảng; kéo mốc để đổi chiều cao hàng. */
+const renderRowStops = (root, editor) => {
+    const ruler = root.querySelector('[data-vruler]');
+    if (!ruler) return;
+    ruler.querySelectorAll('.bs-row-stop').forEach((element) => element.remove());
+    const location = locateTableSelection(editor.state);
+    if (!location) return;
+    const rulerRect = ruler.getBoundingClientRect();
+    if (!rulerRect.height) return;
+    const scale = ruler.offsetHeight / rulerRect.height;
+    const stops = [];
+    let rowNumber = 0;
+    location.table.forEach((row, offset) => {
+        rowNumber += 1;
+        const rowPos = location.tablePos + 1 + offset;
+        const dom = editor.view.nodeDOM(rowPos);
+        if (!dom) return;
+        const top = (dom.getBoundingClientRect().bottom - rulerRect.top) * scale;
+        stops.push(`<div class="bs-row-stop" data-row-pos="${rowPos}" title="Kéo để đổi chiều cao hàng ${rowNumber}" style="top:${top.toFixed(1)}px"></div>`);
+    });
+    ruler.insertAdjacentHTML('beforeend', stops.join(''));
+};
+
 const bindRulerDrag = (editor, root) => {
-    editor.on('transaction', () => renderIndentMarkers(root, editor));
+    editor.on('transaction', () => {
+        renderIndentMarkers(root, editor);
+        renderColumnStops(root, editor);
+        renderRowStops(root, editor);
+    });
     bindTabGhost(root);
+    let columnDrag = null;
+    let rowStopDrag = null;
 
     const corner = root.querySelector('[data-corner]');
     let cornerIndex = 0;
@@ -920,6 +981,24 @@ const bindRulerDrag = (editor, root) => {
     };
 
     root.addEventListener('pointerdown', (event) => {
+        const rowHandle = event.target.closest('[data-row-pos]');
+        if (rowHandle) {
+            event.preventDefault();
+            const dom = editor.view.nodeDOM(Number(rowHandle.dataset.rowPos));
+            rowStopDrag = {
+                rowPos: Number(rowHandle.dataset.rowPos),
+                startY: event.clientY,
+                startHeight: (dom ? dom.getBoundingClientRect().height : 0) / zoomOf(),
+            };
+            return;
+        }
+        const columnHandle = event.target.closest('[data-col-index]');
+        if (columnHandle) {
+            event.preventDefault();
+            const index = Number(columnHandle.dataset.colIndex);
+            columnDrag = { index, startX: event.clientX, startWidth: measureColumnWidths(editor)[index] ?? 100 };
+            return;
+        }
         const handle = event.target.closest('[data-hmargin], [data-vmargin], [data-indent]');
         if (!handle) {
             if (event.target.closest('.bs-ruler')) {
@@ -938,6 +1017,18 @@ const bindRulerDrag = (editor, root) => {
     });
 
     document.addEventListener('pointermove', (event) => {
+        if (rowStopDrag) {
+            const heightPx = Math.max(12, Math.round(rowStopDrag.startHeight + (event.clientY - rowStopDrag.startY) / zoomOf()));
+            setTableRowHeightAt(editor, rowStopDrag.rowPos, heightPx);
+            return;
+        }
+        if (columnDrag) {
+            const rect = root.querySelector('.bs-ruler').getBoundingClientRect();
+            const twipPerScreenPx = currentPage.widthTwip / rect.width;
+            const deltaPx = ((event.clientX - columnDrag.startX) * twipPerScreenPx) / TWIPS_PER_PX;
+            setTableColumnWidth(editor, columnDrag.index, columnDrag.startWidth + deltaPx);
+            return;
+        }
         if (!drag) return;
         const margins = { ...currentPage.marginsTwip };
         if (drag.axis === 'indent') {
@@ -976,7 +1067,60 @@ const bindRulerDrag = (editor, root) => {
         update(margins);
     });
 
-    document.addEventListener('pointerup', () => { drag = null; });
+    document.addEventListener('pointerup', () => {
+        drag = null;
+        columnDrag = null;
+        rowStopDrag = null;
+    });
+};
+
+/*
+ * Kéo mép dưới của hàng trong bảng để đổi chiều cao hàng. Rê chuột gần mép dưới thì con trỏ đổi thành mũi tên dọc.
+ */
+const ROW_EDGE_PX = 5;
+const ROW_MIN_PX = 12;
+const bindRowResize = (editor, root) => {
+    let rowDrag = null;
+    const zoomOf = () => Number(root.querySelector('.bs-page-wrap').style.zoom || 1);
+    const rowAtEdge = (event) => {
+        const row = event.target.closest?.('tr');
+        if (!row || !editor.view.dom.contains(row)) return null;
+        const rect = row.getBoundingClientRect();
+        return event.clientY >= rect.bottom - ROW_EDGE_PX && event.clientY <= rect.bottom + 2 ? row : null;
+    };
+
+    editor.view.dom.addEventListener('pointermove', (event) => {
+        if (rowDrag) return;
+        const cursor = rowAtEdge(event) ? 'ns-resize' : '';
+        if (document.body.style.cursor !== cursor) document.body.style.cursor = cursor;
+    });
+
+    editor.view.dom.addEventListener('pointerdown', (event) => {
+        const row = rowAtEdge(event);
+        if (!row) return;
+        event.preventDefault();
+        const $pos = editor.state.doc.resolve(editor.view.posAtDOM(row, 0));
+        let depth = $pos.depth;
+        while (depth > 0 && $pos.node(depth).type.name !== 'tableRow') depth -= 1;
+        if (depth === 0) return;
+        rowDrag = {
+            rowPos: $pos.before(depth),
+            startY: event.clientY,
+            startHeight: row.getBoundingClientRect().height / zoomOf(),
+        };
+    });
+
+    document.addEventListener('pointermove', (event) => {
+        if (!rowDrag) return;
+        const heightPx = Math.max(ROW_MIN_PX, Math.round(rowDrag.startHeight + (event.clientY - rowDrag.startY) / zoomOf()));
+        setTableRowHeightAt(editor, rowDrag.rowPos, heightPx);
+    });
+
+    document.addEventListener('pointerup', () => {
+        if (!rowDrag) return;
+        rowDrag = null;
+        document.body.style.cursor = '';
+    });
 };
 
 /* Màu nền trang, khung trang và lưới bảng. */
@@ -1077,6 +1221,7 @@ const mountEditor = () => {
     bindFindBar(editor, root);
     bindContextMenu(editor, root);
     bindRulerDrag(editor, root);
+    bindRowResize(editor, root);
     const syncTableTab = () => {
         const tab = root.querySelector('[data-tab="table"]');
         const inTable = editor.isActive('table');

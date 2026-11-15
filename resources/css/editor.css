@@ -148,6 +148,12 @@ body {
     user-select: none;
 }
 
+/* #bo-soan tắt chọn văn bản để giao diện ribbon không bị bôi đen; vùng soạn thảo phải bật lại để kéo chọn chữ và ô bảng */
+#bo-soan .doc-body,
+#bo-soan .ProseMirror {
+    user-select: text;
+}
+
 .doc-body p {
     margin: 0 0 6pt;
 }
@@ -163,6 +169,111 @@ body {
     padding: 4px 6px;
     min-width: 40px;
     vertical-align: top;
+}
+
+.doc-body table[data-align="center"],
+.doc-body table[data-align="right"],
+.doc-body table[data-fit="contents"] {
+    width: auto;
+}
+
+/* Hàng có chiều cao "chính xác" và hàng không cho ngắt qua trang */
+.doc-body tr.bs-row-exact > td,
+.doc-body tr.bs-row-exact > th {
+    height: inherit;
+    overflow: hidden;
+}
+
+.doc-body tr.bs-row-nobreak {
+    break-inside: avoid;
+}
+
+/* Menu con của menu chuột phải (Tự động điều chỉnh, Chèn, Xóa) */
+.bs-ctx-group {
+    position: relative;
+}
+
+.bs-ctx-parent {
+    justify-content: space-between;
+}
+
+.bs-ctx-arrow {
+    margin-left: 16px;
+    color: #666;
+}
+
+.bs-ctx-sub {
+    display: none;
+    position: absolute;
+    left: 100%;
+    top: -4px;
+    min-width: 180px;
+    padding: 4px 0;
+    background: #fff;
+    border: 1px solid #c8c6c4;
+    border-radius: 4px;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+}
+
+.bs-ctx-group:hover > .bs-ctx-sub {
+    display: block;
+}
+
+/* Hộp thoại Thuộc tính bảng: các tab Bảng, Hàng, Ô */
+.bs-tp-tabs {
+    display: flex;
+    gap: 4px;
+    border-bottom: 1px solid #c8c6c4;
+    margin-bottom: 12px;
+}
+
+.bs-tp-tab {
+    padding: 6px 14px;
+    border: 1px solid transparent;
+    border-bottom: none;
+    background: none;
+    cursor: pointer;
+    font: inherit;
+}
+
+.bs-tp-tab.is-active {
+    border-color: #c8c6c4;
+    background: #fff;
+    font-weight: 600;
+}
+
+.bs-tp-panel[hidden] {
+    display: none;
+}
+
+.bs-tp-panel label,
+.bs-tp-panel fieldset {
+    display: block;
+    margin-bottom: 10px;
+}
+
+.bs-tp-radio {
+    display: inline-block !important;
+    margin-right: 14px;
+}
+
+.doc-body table[data-align="center"] {
+    margin-left: auto;
+    margin-right: auto;
+}
+
+.doc-body table[data-align="right"] {
+    margin-left: auto;
+}
+
+.doc-body td[data-valign="middle"],
+.doc-body th[data-valign="middle"] {
+    vertical-align: middle;
+}
+
+.doc-body td[data-valign="bottom"],
+.doc-body th[data-valign="bottom"] {
+    vertical-align: bottom;
 }
 
 .doc-body ul,
@@ -572,6 +683,69 @@ body {
     background: transparent;
 }
 
+/* display:flex ở trên ghi đè thuộc tính hidden, nên phải ẩn tường minh */
+.bs-mini[hidden],
+.bs-ctx[hidden] {
+    display: none;
+}
+
+/* Nhóm nút bảng của thanh công cụ nổi: chỉ hiện khi chuột phải trong bảng */
+.bs-mini .bs-mini-table {
+    display: none;
+}
+
+.bs-mini.is-table .bs-mini-table {
+    display: inline-flex;
+    align-items: center;
+    gap: 2px;
+}
+
+.bs-mini-sep {
+    width: 1px;
+    height: 22px;
+    margin: 0 3px;
+    background: #d6d6d6;
+}
+
+.bs-mini-drop {
+    position: relative;
+}
+
+.bs-mini .bs-mini-drop-toggle {
+    width: auto;
+    padding: 0 8px;
+    font: 12px 'Segoe UI', Arial, sans-serif;
+    white-space: nowrap;
+}
+
+.bs-mini-list {
+    position: absolute;
+    top: 100%;
+    left: 0;
+    z-index: 2;
+    display: flex;
+    flex-direction: column;
+    min-width: 170px;
+    padding: 4px 0;
+    background: #fff;
+    border: 1px solid #c8c6c4;
+    border-radius: 4px;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+}
+
+.bs-mini-list[hidden] {
+    display: none;
+}
+
+.bs-mini .bs-mini-list button {
+    width: 100%;
+    height: 28px;
+    padding: 0 12px;
+    justify-content: flex-start;
+    font: 12.5px 'Segoe UI', Arial, sans-serif;
+    white-space: nowrap;
+}
+
 /* Thanh truy cập nhanh ở đầu, nằm cùng hàng với các tab */
 .bs-topbar {
     display: flex;
@@ -773,6 +947,38 @@ body {
     content: attr(data-placeholder);
     color: #bbb;
     font-style: italic;
+}
+
+/* Mốc cạnh cột trên thước ngang, kéo để đổi độ rộng cột */
+.bs-col-stop {
+    position: absolute;
+    bottom: 0;
+    width: 8px;
+    height: 100%;
+    z-index: 6;
+    transform: translateX(-50%);
+    cursor: ew-resize;
+    background: linear-gradient(to right, transparent 3px, #185abd 3px, #185abd 5px, transparent 5px);
+}
+
+.bs-col-stop:hover {
+    background: linear-gradient(to right, transparent 3px, #0f4aa0 3px, #0f4aa0 5px, transparent 5px);
+}
+
+/* Mốc đáy hàng trên thước dọc, kéo để đổi chiều cao hàng */
+.bs-row-stop {
+    position: absolute;
+    left: 0;
+    right: 0;
+    height: 8px;
+    z-index: 6;
+    transform: translateY(-50%);
+    cursor: ns-resize;
+    background: linear-gradient(to bottom, transparent 3px, #185abd 3px, #185abd 5px, transparent 5px);
+}
+
+.bs-row-stop:hover {
+    background: linear-gradient(to bottom, transparent 3px, #0f4aa0 3px, #0f4aa0 5px, transparent 5px);
 }
 
 /* Dấu thụt lề trên thước ngang */
@@ -1430,6 +1636,30 @@ body {
 .wk-dialog-body input[type="number"],
 .wk-dialog-body select {
     width: 160px;
+    padding: 3px 6px;
+    border: 1px solid #8a8886;
+    border-radius: 2px;
+    background: #fff;
+    font: inherit;
+}
+
+/* Nhãn có ô đánh dấu hoặc nút chọn thì đặt chữ ngay sau ô, không dàn hai đầu */
+.wk-dialog-body label:has(> input[type="checkbox"]),
+.wk-dialog-body label:has(> input[type="radio"]) {
+    justify-content: flex-start;
+    gap: 6px;
+}
+
+.wk-dialog-body fieldset {
+    margin: 0;
+    padding: 6px 10px 8px;
+    border: 1px solid #e1dfdd;
+    border-radius: 4px;
+}
+
+.wk-dialog-body legend {
+    padding: 0 4px;
+    color: #605e5c;
 }
 
 .wk-dialog-foot {

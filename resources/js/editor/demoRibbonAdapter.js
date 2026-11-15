@@ -66,8 +66,10 @@ const COMMAND_TO_ACTION = {
     'table-delete-col': 'tableDeleteCol',
     'table-merge': 'tableMerge',
     'table-split': 'tableSplit',
+    'borders-shading': 'borderShadingDialog',
     'table-delete': 'tableDelete',
     'table-header-row': 'tableHeader',
+    'table-properties': 'tableProperties',
     'multilevel-list': 'multilevel',
     sort: 'sortParagraphs',
     'layout-web': 'draftView',
@@ -94,6 +96,8 @@ const STYLE_TO_DATA = {
 
 /* Thuộc tính nhập số (demo1) -> control của bộ soạn. */
 const CHANGE_TO_CONTROL = {
+    'border-color': 'borderColor',
+    'border-width': 'borderWidth',
     'layout-margin-top': 'marginTop',
     'layout-margin-bottom': 'marginBottom',
     'layout-margin-left': 'marginLeft',
@@ -162,6 +166,17 @@ const adaptCommands = (root) => {
         }
         if (command === 'insert-image') {
             el.setAttribute('data-action', 'insertImageTrigger');
+            return;
+        }
+        if (command === 'table-shading') {
+            el.setAttribute('data-action', 'tableShading');
+            el.setAttribute('data-value', el.getAttribute('data-office-kit-arg') ?? '');
+            el.removeAttribute('data-office-kit-arg');
+            return;
+        }
+        if (command.startsWith('border-')) {
+            el.setAttribute('data-action', 'tableBorder');
+            el.setAttribute('data-value', command.slice('border-'.length));
             return;
         }
         if (COMMAND_TO_ACTION[command]) {

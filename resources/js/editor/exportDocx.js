@@ -17,6 +17,10 @@ import {
     TextRun,
     WidthType,
     BorderStyle,
+    HeightRule,
+    TableLayoutType,
+    TextDirection,
+    VerticalAlign,
 } from 'docx';
 
 const TAB_TYPE = {
@@ -124,30 +128,137 @@ const paragraphOf = (node, extra = {}) => {
     });
 };
 
+/* Bảng: độ dài trong bộ soạn tính bằng px (96 dpi), docx dùng twip (1 px = 15 twip). */
+const PX_TO_TWIP = 15;
+const DEFAULT_BORDER = { style: BorderStyle.SINGLE, size: 4, color: '888888' };
+const BORDER_STYLE = {
+    solid: BorderStyle.SINGLE,
+    dashed: BorderStyle.DASHED,
+    dotted: BorderStyle.DOTTED,
+    double: BorderStyle.DOUBLE,
+};
+const CELL_VALIGN = { top: VerticalAlign.TOP, middle: VerticalAlign.CENTER, bottom: VerticalAlign.BOTTOM };
+const TABLE_ALIGN = { left: AlignmentType.LEFT, center: AlignmentType.CENTER, right: AlignmentType.RIGHT };
+const CELL_TEXT_DIRECTION = {
+    tbrl: TextDirection.TOP_TO_BOTTOM_RIGHT_TO_LEFT,
+    btlr: TextDirection.BOTTOM_TO_TOP_LEFT_TO_RIGHT,
+};
+
+/* Màu CSS (#rgb, #rrggbb, rgb(r, g, b)) sang hex 6 ký tự của docx; null nếu không đọc được. */
+const hexOf = (value) => {
+    const text = String(value ?? '').trim();
+    const short = text.match(/^#([0-9a-f])([0-9a-f])([0-9a-f])$/i);
+    if (short) return (short[1] + short[1] + short[2] + short[2] + short[3] + short[3]).toUpperCase();
+    const long = text.match(/^#([0-9a-f]{6})$/i);
+    if (long) return long[1].toUpperCase();
+    const rgb = text.match(/^rgba?\((\d+),\s*(\d+),\s*(\d+)/i);
+    if (rgb) return rgb.slice(1, 4).map((part) => Number(part).toString(16).padStart(2, '0')).join('').toUpperCase();
+    return null;
+};
+
+/* Viền một cạnh của ô: { style, width (pt), color } -> viền docx (độ dày tính bằng 1/8 pt). */
+const docxBorder = (border) => {
+    if (!border) return undefined;
+    if (border.style === 'none') return { style: BorderStyle.NONE, size: 0, color: 'auto' };
+    return {
+        style: BORDER_STYLE[border.style] ?? BorderStyle.SINGLE,
+        size: Math.max(2, Math.round((border.width ?? 0.5) * 8)),
+        color: hexOf(border.color) ?? '000000',
+    };
+};
+
+const cellBordersOf = (borders) => {
+    if (!borders) return undefined;
+    const result = {};
+    ['top', 'bottom', 'left', 'right'].forEach((side) => {
+        const border = docxBorder(borders[side]);
+        if (border) result[side] = border;
+    });
+    return Object.keys(result).length ? result : undefined;
+};
+
+/* Độ rộng từng cột (px) lấy từ hàng đầu; null nếu có cột chưa đặt độ rộng. */
+const columnWidthsOf = (node) => {
+    const widths = [];
+    for (const cell of node.content?.[0]?.content ?? []) {
+        const span = cell.attrs?.colspan ?? 1;
+        for (let index = 0; index < span; index += 1) {
+            const width = cell.attrs?.colwidth?.[index];
+            if (!width) return null;
+            widths.push(width);
+        }
+    }
+    return widths.length ? widths : null;
+};
+
+const tableCellOf = (cell) => {
+    const attrs = cell.attrs ?? {};
+    const colwidth = attrs.colwidth?.filter(Boolean) ?? [];
+    const background = hexOf(attrs.background);
+    let shading;
+    if (background) {
+        shading = { type: ShadingType.CLEAR, fill: background, color: 'auto' };
+    } else if (cell.type === 'tableHeader') {
+        shading = { type: ShadingType.CLEAR, fill: 'F2F2F2', color: 'auto' };
+    }
+    return new TableCell({
+        children: (cell.content?.length ? cell.content : [{ type: 'paragraph', content: [] }]).flatMap((child) => blocksOf([child])),
+        columnSpan: attrs.colspan > 1 ? attrs.colspan : undefined,
+        rowSpan: attrs.rowspan > 1 ? attrs.rowspan : undefined,
+        width: colwidth.length ? { size: colwidth.reduce((sum, px) => sum + px, 0) * PX_TO_TWIP, type: WidthType.DXA } : undefined,
+        verticalAlign: CELL_VALIGN[attrs.verticalAlign],
+        textDirection: CELL_TEXT_DIRECTION[attrs.textDirection],
+        borders: cellBordersOf(attrs.borders),
+        shading,
+    });
+};
+
+const tableRowOf = (row) => {
+    const attrs = row.attrs ?? {};
+    return new TableRow({
+        children: (row.content ?? []).map(tableCellOf),
+        height: attrs.height
+            ? { value: Math.round(attrs.height * PX_TO_TWIP), rule: attrs.heightRule === 'exact' ? HeightRule.EXACT : HeightRule.ATLEAST }
+            : undefined,
+        cantSplit: attrs.allowBreak === false ? true : undefined,
+        tableHeader: attrs.repeatHeader ? true : undefined,
+    });
+};
+
 const tableOf = (node) => {
-    const rows = (node.content ?? []).map(
-        (row) =>
-            new TableRow({
-                children: (row.content ?? []).map(
-                    (cell) =>
-                        new TableCell({
-                            children: (cell.content ?? [{ type: 'paragraph', content: [] }]).map((p) => paragraphOf(p)),
-                            width: { size: 100, type: WidthType.PERCENTAGE },
-                            shading: cell.type === 'tableHeader' ? { type: ShadingType.CLEAR, fill: 'F2F2F2' } : undefined,
-                        }),
-                ),
-            }),
-    );
+    const attrs = node.attrs ?? {};
+    const columnWidths = columnWidthsOf(node);
+    let width = { size: 100, type: WidthType.PERCENTAGE };
+    if (attrs.width) {
+        width = { size: Math.round(attrs.width * PX_TO_TWIP), type: WidthType.DXA };
+    } else if (columnWidths) {
+        width = { size: columnWidths.reduce((sum, px) => sum + px, 0) * PX_TO_TWIP, type: WidthType.DXA };
+    } else if (attrs.fit === 'contents') {
+        width = { size: 0, type: WidthType.AUTO };
+    }
+    const padding = attrs.cellPadding;
     return new Table({
-        rows,
-        width: { size: 100, type: WidthType.PERCENTAGE },
+        rows: (node.content ?? []).map(tableRowOf),
+        width,
+        columnWidths: columnWidths ? columnWidths.map((px) => px * PX_TO_TWIP) : undefined,
+        layout: columnWidths ? TableLayoutType.FIXED : TableLayoutType.AUTOFIT,
+        alignment: TABLE_ALIGN[attrs.align],
+        indent: attrs.indent ? { size: Math.round(attrs.indent * PX_TO_TWIP), type: WidthType.DXA } : undefined,
+        margins: padding
+            ? {
+                top: Math.round(padding.vertical * PX_TO_TWIP),
+                bottom: Math.round(padding.vertical * PX_TO_TWIP),
+                left: Math.round(padding.horizontal * PX_TO_TWIP),
+                right: Math.round(padding.horizontal * PX_TO_TWIP),
+            }
+            : undefined,
         borders: {
-            top: { style: BorderStyle.SINGLE, size: 4, color: '888888' },
-            bottom: { style: BorderStyle.SINGLE, size: 4, color: '888888' },
-            left: { style: BorderStyle.SINGLE, size: 4, color: '888888' },
-            right: { style: BorderStyle.SINGLE, size: 4, color: '888888' },
-            insideHorizontal: { style: BorderStyle.SINGLE, size: 4, color: '888888' },
-            insideVertical: { style: BorderStyle.SINGLE, size: 4, color: '888888' },
+            top: DEFAULT_BORDER,
+            bottom: DEFAULT_BORDER,
+            left: DEFAULT_BORDER,
+            right: DEFAULT_BORDER,
+            insideHorizontal: DEFAULT_BORDER,
+            insideVertical: DEFAULT_BORDER,
         },
     });
 };
