@@ -78,6 +78,36 @@ class DichVuSoanThaoTest extends TestCase
         Http::assertSent(fn (YeuCauDichVu $yeuCau) => $this->tepDaGui($yeuCau) === $rtfAnsi);
     }
 
+    public function test_rtf_documents_joined_together_open_as_one_whole_document(): void
+    {
+        $sfdtDieuKhoan = fn (string $chu, string $kieu): array => [
+            'sections' => [[
+                'blocks' => [['paragraphFormat' => ['listFormat' => ['listId' => 0]], 'inlines' => [['text' => $chu]]]],
+                'sectionFormat' => new \stdClass,
+            ]],
+            'styles' => [['name' => 'Normal'], ['name' => $kieu]],
+            'lists' => [['listId' => 0, 'abstractListId' => 0]],
+            'abstractLists' => [['abstractListId' => 0, 'levels' => []]],
+        ];
+        Http::fake([self::DICH_VU.'Import' => fn (YeuCauDichVu $yeuCau) => str_contains($this->tepDaGui($yeuCau), 'Dieu 1')
+            ? Http::response($sfdtDieuKhoan('Điều 1', 'Tiêu đề 1'))
+            : Http::response($sfdtDieuKhoan('Điều 2', 'Tiêu đề 2'))]);
+        // Hợp đồng V3 của dotary nối RTF của từng điều khoản; "\}" trong điều khoản đầu là ngoặc đã thoát.
+        $rtfNoi = '{\rtf1\ansi Dieu 1 \} ghi chu\par}'."\r\n".'{\rtf1\ansi Dieu 2\par}';
+
+        $phanHoi = $this->post('/api/documenteditor/import-vinbs', ['files' => UploadedFile::fake()->createWithContent('hop-dong.rtf', $rtfNoi)])
+            ->assertOk()
+            ->assertSee('"sectionFormat":{}', false);
+
+        $khoi = $phanHoi->json('sections.0.blocks');
+        $this->assertCount(1, $phanHoi->json('sections'));
+        $this->assertSame(['Điều 1', 'Điều 2'], array_column(array_column(array_column($khoi, 'inlines'), 0), 'text'));
+        $this->assertSame([0, 1], array_column(array_column(array_column($khoi, 'paragraphFormat'), 'listFormat'), 'listId'));
+        $this->assertSame([['listId' => 0, 'abstractListId' => 0], ['listId' => 1, 'abstractListId' => 1]], $phanHoi->json('lists'));
+        $this->assertSame(['Normal', 'Tiêu đề 1', 'Tiêu đề 2'], array_column($phanHoi->json('styles'), 'name'));
+        Http::assertSentCount(2);
+    }
+
     private function tepDaGui(YeuCauDichVu $yeuCau): ?string
     {
         return collect($yeuCau->data())->firstWhere('name', 'files')['contents'] ?? null;

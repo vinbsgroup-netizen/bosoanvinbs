@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
 use Illuminate\Http\Client\ConnectionException;
+use Illuminate\Http\Client\Pool;
 use Illuminate\Http\Client\Response as PhanHoiDichVu;
 use Illuminate\Http\Request;
 use Illuminate\Http\Response;
@@ -47,6 +48,12 @@ class DichVuSoanThaoController extends Controller
         $noiDung = $tep->get();
 
         if (str_starts_with(ltrim($noiDung), '{\rtf')) {
+            $taiLieu = $this->tachTaiLieuRtf($noiDung);
+
+            if (count($taiLieu) > 1) {
+                return $this->nhapNhieuTaiLieuRtf(array_map(fn (string $rtf): string => $this->maHoaRtfUnicode($rtf), $taiLieu));
+            }
+
             $noiDung = $this->maHoaRtfUnicode($noiDung);
         }
 
@@ -54,6 +61,152 @@ class DichVuSoanThaoController extends Controller
             ->timeout(120)
             ->attach('files', $noiDung, $tep->getClientOriginalName() ?: 'van-ban.docx')
             ->post(config('bo_soan.dich_vu_syncfusion').'Import'));
+    }
+
+    /**
+     * Phần mềm khách (hợp đồng V3 của dotary) dựng văn bản bằng cách nối RTF của từng điều khoản: {\rtf1 ...}{\rtf1 ...}.
+     * Dịch vụ Import chỉ đọc tài liệu đầu tiên, nên mở từng tài liệu rồi gộp SFDT theo đúng thứ tự.
+     *
+     * @param  list<string>  $taiLieu
+     */
+    private function nhapNhieuTaiLieuRtf(array $taiLieu): Response
+    {
+        $url = config('bo_soan.dich_vu_syncfusion').'Import';
+
+        $cacPhanHoi = Http::pool(fn (Pool $pool): array => array_map(
+            fn (string $rtf) => $pool->connectTimeout(5)->timeout(120)->attach('files', $rtf, 'van-ban.rtf')->post($url),
+            $taiLieu,
+        ), concurrency: 6);
+        ksort($cacPhanHoi);
+
+        $cacSfdt = [];
+
+        foreach ($cacPhanHoi as $thuTu => $phanHoi) {
+            if (! $phanHoi instanceof PhanHoiDichVu) {
+                Log::warning('Không kết nối được dịch vụ soạn thảo.', ['hanh_dong' => 'Import', 'tai_lieu' => $thuTu]);
+
+                return response('Không kết nối được dịch vụ soạn thảo.', 502);
+            }
+
+            $sfdt = json_decode($phanHoi->body());
+
+            if (! $phanHoi->successful() || ! is_object($sfdt) || ! isset($sfdt->sections)) {
+                Log::warning('Dịch vụ soạn thảo trả lỗi.', ['hanh_dong' => 'Import', 'tai_lieu' => $thuTu, 'trang_thai' => $phanHoi->status()]);
+
+                return response('Dịch vụ soạn thảo không xử lý được yêu cầu.', 502);
+            }
+
+            $cacSfdt[] = $sfdt;
+        }
+
+        return response(json_encode($this->gopSfdt($cacSfdt), JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES | JSON_PRESERVE_ZERO_FRACTION), 200)
+            ->header('Content-Type', 'application/json; charset=utf-8');
+    }
+
+    /**
+     * Tách chuỗi gồm nhiều tài liệu RTF nối liền thành từng tài liệu, theo các nhóm ngoài cùng { ... }.
+     * Bỏ qua ngoặc được thoát (\{ \}) và dữ liệu nhị phân \binN.
+     *
+     * @return list<string>
+     */
+    private function tachTaiLieuRtf(string $noiDung): array
+    {
+        $taiLieu = [];
+        $doSau = 0;
+        $batDau = 0;
+        $doDai = strlen($noiDung);
+
+        for ($i = 0; $i < $doDai; $i++) {
+            $kyTu = $noiDung[$i];
+
+            if ($kyTu === '\\') {
+                $i += preg_match('/\Gbin(\d+) ?/', $noiDung, $khop, 0, $i + 1) ? strlen($khop[0]) + (int) $khop[1] : 1;
+            } elseif ($kyTu === '{') {
+                $batDau = $doSau === 0 ? $i : $batDau;
+                $doSau++;
+            } elseif ($kyTu === '}' && $doSau > 0 && --$doSau === 0) {
+                $taiLieu[] = substr($noiDung, $batDau, $i - $batDau + 1);
+            }
+        }
+
+        return array_values(array_filter($taiLieu, fn (string $nhom): bool => str_starts_with($nhom, '{\rtf')));
+    }
+
+    /**
+     * Gộp nhiều SFDT: nối khối nội dung vào section cuối của tài liệu đầu (giữ khổ giấy, đầu và chân trang của tài liệu
+     * đầu, liền mạch như TX hiển thị), thêm kiểu chữ còn thiếu, đánh lại mã danh sách đánh số để không trùng.
+     * SFDT đọc dạng đối tượng để {} không thành [] khi ghi lại.
+     *
+     * @param  non-empty-list<object>  $cacSfdt
+     */
+    private function gopSfdt(array $cacSfdt): object
+    {
+        $goc = array_shift($cacSfdt);
+        $goc->styles ??= [];
+        $goc->lists ??= [];
+        $goc->abstractLists ??= [];
+        $sectionCuoi = end($goc->sections);
+        $sectionCuoi->blocks ??= [];
+
+        foreach ($cacSfdt as $sfdt) {
+            $this->doiMaDanhSach(
+                $sfdt,
+                $this->maLonNhat($goc->lists, 'listId') + 1,
+                $this->maLonNhat($goc->abstractLists, 'abstractListId') + 1,
+            );
+
+            array_push($goc->lists, ...($sfdt->lists ?? []));
+            array_push($goc->abstractLists, ...($sfdt->abstractLists ?? []));
+
+            $tenKieu = array_column($goc->styles, 'name');
+            foreach ($sfdt->styles ?? [] as $kieu) {
+                if (! in_array($kieu->name ?? null, $tenKieu, true)) {
+                    $goc->styles[] = $kieu;
+                }
+            }
+
+            foreach ($sfdt->sections as $section) {
+                array_push($sectionCuoi->blocks, ...($section->blocks ?? []));
+            }
+        }
+
+        return $goc;
+    }
+
+    /**
+     * @param  list<object>  $cacMuc
+     */
+    private function maLonNhat(array $cacMuc, string $khoa): int
+    {
+        return max([-1, ...array_map(fn (object $muc): int => (int) ($muc->{$khoa} ?? -1), $cacMuc)]);
+    }
+
+    /**
+     * Cộng độ lệch vào mọi listId, abstractListId (từ 0 trở lên) trong tài liệu sắp gộp.
+     */
+    private function doiMaDanhSach(mixed $nut, int $lechList, int $lechAbstract): void
+    {
+        if (is_array($nut)) {
+            foreach ($nut as $con) {
+                $this->doiMaDanhSach($con, $lechList, $lechAbstract);
+            }
+
+            return;
+        }
+
+        if (! is_object($nut)) {
+            return;
+        }
+
+        foreach (get_object_vars($nut) as $khoa => $giaTri) {
+            if ($khoa === 'listId' && is_int($giaTri) && $giaTri >= 0) {
+                $nut->listId = $giaTri + $lechList;
+            } elseif ($khoa === 'abstractListId' && is_int($giaTri) && $giaTri >= 0) {
+                $nut->abstractListId = $giaTri + $lechAbstract;
+            } else {
+                $this->doiMaDanhSach($giaTri, $lechList, $lechAbstract);
+            }
+        }
     }
 
     /**
