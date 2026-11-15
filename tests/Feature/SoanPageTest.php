@@ -23,7 +23,7 @@ class SoanPageTest extends TestCase
 
         $this->get("/soan/{$ma}")
             ->assertOk()
-            ->assertSee('office-kit/office-kit.js', false)
+            ->assertSee('src="/api/nhung"', false)
             ->assertSee(trim(json_encode(self::SFDT_CU, JSON_HEX_TAG | JSON_HEX_APOS | JSON_HEX_AMP | JSON_HEX_QUOT), '"'), false)
             ->assertSee(str_replace('/', '\/', "/soan/{$ma}/ket-qua"), false);
     }
@@ -71,7 +71,7 @@ class SoanPageTest extends TestCase
     {
         $this->get('/')
             ->assertOk()
-            ->assertSee('office-kit/office-kit.js', false)
+            ->assertSee('src="/api/nhung"', false)
             ->assertDontSee('id="submit-noidung"', false);
     }
 }

@@ -92,6 +92,18 @@ class DichVuSoanThaoTest extends TestCase
         Http::assertSent(fn (YeuCauDichVu $yeuCau) => $yeuCau->url() === self::DICH_VU.'SystemClipboard' && $yeuCau->data() === $noiDungDan);
     }
 
+    public function test_a_page_on_another_domain_may_call_the_editor_services(): void
+    {
+        // Bộ soạn nhúng trong dotary gọi thẳng dịch vụ của bo-soan; dán giữ định dạng gửi JSON nên trình duyệt hỏi trước (preflight).
+        $this->call('OPTIONS', '/api/documenteditor/SystemClipboard', server: [
+            'HTTP_ORIGIN' => 'https://dotary.example.com',
+            'HTTP_ACCESS_CONTROL_REQUEST_METHOD' => 'POST',
+            'HTTP_ACCESS_CONTROL_REQUEST_HEADERS' => 'content-type',
+        ])->assertHeader('Access-Control-Allow-Origin', '*');
+
+        Http::assertNothingSent();
+    }
+
     public function test_an_action_outside_the_allowed_list_is_not_forwarded(): void
     {
         $this->postJson('/api/documenteditor/XoaDuLieu', [])->assertNotFound();

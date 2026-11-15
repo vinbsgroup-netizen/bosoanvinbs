@@ -2,6 +2,7 @@
 
 use App\Http\Controllers\Api\CauHinhController;
 use App\Http\Controllers\Api\DichVuSoanThaoController;
+use App\Http\Controllers\Api\NhungBoSoanController;
 use App\Http\Controllers\Api\PhienSoanController;
 use App\Http\Middleware\XacThucBanQuyen;
 use Illuminate\Support\Facades\Route;
@@ -14,6 +15,11 @@ Route::middleware(XacThucBanQuyen::class)->prefix('v1')->group(function () {
     Route::get('/cau-hinh', [CauHinhController::class, 'show'])->name('api.cau-hinh.show');
     Route::put('/cau-hinh', [CauHinhController::class, 'update'])->name('api.cau-hinh.update');
 });
+
+/*
+ * Script nhúng bộ soạn vào trang của phần mềm khác. Đặt ở api (không session) vì mỗi lần mở trang nhúng đều gọi tới.
+ */
+Route::get('/nhung', NhungBoSoanController::class)->name('api.nhung');
 
 /*
  * Dịch vụ cho bộ soạn Office kit (Syncfusion), cùng dạng địa chỉ với dịch vụ .NET (.../api/documenteditor/),

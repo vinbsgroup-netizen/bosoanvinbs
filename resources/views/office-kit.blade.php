@@ -5,10 +5,6 @@
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <meta name="csrf-token" content="{{ csrf_token() }}">
     <title>{{ $phien['tieu_de'] ?? 'Bộ soạn văn bản' }}</title>
-    {{-- Bộ soạn Office kit (Syncfusion DocumentEditor), lấy nguyên từ bộ soạn của hợp đồng V2 --}}
-    <link href="{{ asset('office-kit/material.css') }}" rel="stylesheet">
-    <link href="{{ asset('office-kit/index.css') }}" rel="stylesheet">
-    <link href="{{ asset('office-kit/print.min.css') }}" rel="stylesheet">
     <style>
         html, body { margin: 0; height: 100%; overflow: hidden; background: #e5e5e5; font-family: 'Segoe UI', Arial, sans-serif; }
         #documenteditor_titlebar { display: flex; align-items: center; gap: 10px; min-height: 36px; padding: 0 12px; background: #1abb9c; color: #fff; font-size: 13px; }
@@ -37,28 +33,18 @@
         <div id="container"></div>
     </div>
 
-    <script src="{{ asset('office-kit/print.min.js') }}"></script>
-    <script src="{{ asset('office-kit/ej2.min.js') }}"></script>
     <script>
-        // Dịch vụ Syncfusion và chuyển PDF đi qua chính bo-soan (/api/documenteditor/*, /api/get-file).
-        window.syncfusionOfficeKitDocumentServiceUrl = @json(url('/api/documenteditor').'/');
-        window.syncfusionOfficeKitImportUrl = @json(route('api.soan-thao.import-vinbs'));
         // QR và logo khi xuất là cấu hình riêng của phần mềm khách, bộ soạn chung không gắn.
         window.documentExportQrDisabled = true;
         window.documentExportLogoDisabled = true;
     </script>
-    <script src="{{ asset('office-kit/office-kit.js') }}?v={{ filemtime(public_path('office-kit/office-kit.js')) }}"></script>
+    {{-- Bộ soạn Office kit (Syncfusion DocumentEditor) của hợp đồng V2, nạp qua cùng script nhúng mà phần mềm khách dùng.
+         Đường dẫn tương đối để dịch vụ Syncfusion và chuyển PDF đi qua chính bo-soan, đúng http/https của trang. --}}
+    <script src="{{ route('api.nhung', [], false) }}"></script>
     <script>
         (function () {
             var phien = @json($phien);
             var editor = container.documentEditor;
-
-            // Office kit đặt pageOutline = "FF000" (mã màu sai nên canvas vẽ viền đen quanh trang). Bỏ khung trang.
-            editor.pageOutline = 'transparent';
-
-            // "Mở file Word" của Office kit chỉ lọc .doc, .docx, .sfdt; bo-soan mở được cả RTF và văn bản thuần (.txt).
-            getSyncfusionOfficeKitImportInput().accept = '.doc,.docx,.rtf,.txt,.sfdt,application/msword,'
-                + 'application/vnd.openxmlformats-officedocument.wordprocessingml.document,application/rtf,text/rtf,text/plain,application/json';
 
             // Bộ soạn chiếm hết phần còn lại của cửa sổ, bên dưới thanh tiêu đề và ribbon.
             function datChieuCao() {
