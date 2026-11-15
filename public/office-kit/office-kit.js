@@ -3,8 +3,8 @@ if (typeof ej !== "undefined" && ej.base && typeof ej.base.enableRipple === "fun
 }
 
 var hostUrl = window.location.origin.replace(/\/+$/, "") + "/";
-// Default same-origin: paste (SystemClipboard) di qua proxy Laravel -> tranh mixed-content khi trang chay HTTPS.
-// Trang nao can dich vu .NET rieng (hopdong) van override qua window.syncfusionOfficeKitDocumentServiceUrl.
+// Dich vu .NET DocumentEditor chi con dung cho "Mo file" (gui kem trong yeu cau import). Dan giu dinh dang va PDF
+// lam ngay tren trinh duyet. Trang nao can dich vu rieng van override qua window.syncfusionOfficeKitDocumentServiceUrl.
 var syncfusionOfficeKitDocumentServiceUrl = window.syncfusionOfficeKitDocumentServiceUrl || (hostUrl + "api/documenteditor/");
 var syncfusionOfficeKitDefaultCharacterFormat = {
     bold: false,
@@ -1194,6 +1194,11 @@ function installWordKitContextMenu(editorContainer, editor) {
     }
 
     editor.addEventListener("customContextMenuBeforeOpen", function (args) {
+        // Syncfusion chi bat "Dan" khi enableLocalPaste; dan cua bo soan doc bo nho tam he thong nen luon bat.
+        var pasteItem = document.getElementById(editor.element.id + "_contextmenu_paste");
+        if (pasteItem && !editor.isReadOnlyMode) {
+            pasteItem.classList.remove("e-disabled");
+        }
         var inTable = isWordKitSelectionInTable(editor) && !editor.isReadOnly;
         (args && args.ids || []).forEach(function (id) {
             var item = document.getElementById(id);
@@ -1764,7 +1769,9 @@ function pasteSyncfusionOfficeKitFromStore(editor) {
                 showWordKitToast("Kho trống. Hãy sao chép (Ctrl+C) khối văn bản ở văn bản/phần mềm nguồn trước.");
                 return;
             }
-            editorModule.pasteContents(data.sfdt);
+            if (!pasteSyncfusionOfficeKitSfdt(editor, data.sfdt, data.label || "")) {
+                showWordKitToast("Nội dung trong kho dùng chung không hợp lệ.");
+            }
         })
         .catch(function (error) {
             console.error("Office kit clipboard fetch error:", error);
@@ -1776,53 +1783,78 @@ function syncfusionOfficeKitClipboardSignature(text) {
     return String(text || "").replace(/\s+/g, " ").trim().slice(0, 400);
 }
 
-function saveSyncfusionOfficeKitClipboard(editor) {
+// Ban sao chep gan nhat tu bo soan tren trang nay (khi localStorage bi chan hoac ban SFDT qua lon).
+var syncfusionOfficeKitLastCopy = null;
+
+// Syncfusion sao chep: ghi SFDT vao editor.copiedData roi chon mot div tam (left/top -10000px) ngay duoi body
+// va execCommand("copy"). Chi su kien copy tu div do moi la sao chep trong bo soan.
+function isSyncfusionOfficeKitCopyEvent(event) {
+    var node = event && event.target;
+    if (node && node.nodeType !== 1) {
+        node = node.parentNode;
+    }
+    while (node && node.parentNode && node.parentNode !== document.body) {
+        node = node.parentNode;
+    }
+    return Boolean(node && node.style && node.style.left === "-10000px" && node.style.top === "-10000px");
+}
+
+function saveSyncfusionOfficeKitClipboard(editor, event) {
     var editorModule = editor && editor.editor;
     var selection = editor && editor.selection;
-    if (!editorModule || !selection) {
+    if (!editorModule || !selection || !isSyncfusionOfficeKitCopyEvent(event)) {
         return;
     }
 
-    // Chay sau khi Syncfusion xu ly xong su kien copy thi copiedContent moi co du lieu.
-    setTimeout(function () {
-        try {
-            var raw = editorModule.copiedContent;
-            if (!raw) {
-                return;
-            }
-            var sfdt = typeof raw === "string" ? raw : JSON.stringify(raw);
-            // Tranh nhet qua nhieu vao localStorage (gioi han khoang 5MB).
-            if (!sfdt || sfdt.length > 2000000) {
-                return;
-            }
-            var signature = syncfusionOfficeKitClipboardSignature(selection.text);
-            window.localStorage.setItem(SYNCFUSION_OFFICE_KIT_CLIPBOARD_KEY, JSON.stringify({
-                sfdt: sfdt,
-                sig: signature,
-            }));
-            // Day len kho chung de du an khac ten mien lay duoc.
-            pushSyncfusionOfficeKitClipboardToStore(sfdt, signature.slice(0, 80));
-        } catch (error) {
-            console.error("Office kit clipboard save error:", error);
+    try {
+        var sfdt = editorModule.copiedData;
+        if (!sfdt) {
+            return;
         }
-    }, 120);
+        if (typeof sfdt !== "string") {
+            sfdt = JSON.stringify(sfdt);
+        }
+        // Chu thuan trinh duyet dat vao bo nho tam chinh la chu dang chon trong div tam luc nay.
+        var clipboardText = window.getSelection ? String(window.getSelection()) : "";
+        var entry = {
+            sfdt: sfdt,
+            sig: syncfusionOfficeKitClipboardSignature(selection.text),
+            clipSig: syncfusionOfficeKitClipboardSignature(clipboardText),
+        };
+        syncfusionOfficeKitLastCopy = entry;
+        try {
+            // Tranh nhet qua nhieu vao localStorage (gioi han khoang 5MB).
+            if (sfdt.length <= 2000000) {
+                window.localStorage.setItem(SYNCFUSION_OFFICE_KIT_CLIPBOARD_KEY, JSON.stringify(entry));
+            } else {
+                window.localStorage.removeItem(SYNCFUSION_OFFICE_KIT_CLIPBOARD_KEY);
+            }
+        } catch (storageError) {
+            // Che do an danh / chan luu tru: van dan duoc trong trang nay nho syncfusionOfficeKitLastCopy.
+        }
+        // Day len kho chung de du an khac ten mien lay duoc.
+        pushSyncfusionOfficeKitClipboardToStore(sfdt, (entry.clipSig || entry.sig).slice(0, 80));
+    } catch (error) {
+        console.error("Office kit clipboard save error:", error);
+    }
+}
+
+function syncfusionOfficeKitClipboardEntryMatches(entry, signature) {
+    return Boolean(entry && entry.sfdt && signature && (signature === entry.clipSig || signature === entry.sig));
 }
 
 function loadSyncfusionOfficeKitClipboard(plainText) {
+    var signature = syncfusionOfficeKitClipboardSignature(plainText);
+    if (!signature) {
+        return null;
+    }
+    if (syncfusionOfficeKitClipboardEntryMatches(syncfusionOfficeKitLastCopy, signature)) {
+        return syncfusionOfficeKitLastCopy.sfdt;
+    }
     try {
         var stored = window.localStorage.getItem(SYNCFUSION_OFFICE_KIT_CLIPBOARD_KEY);
-        if (!stored) {
-            return null;
-        }
-        var entry = JSON.parse(stored);
-        if (!entry || !entry.sfdt) {
-            return null;
-        }
-        var now = syncfusionOfficeKitClipboardSignature(plainText);
-        if (!now || !entry.sig || now !== entry.sig) {
-            return null;
-        }
-        return entry.sfdt;
+        var entry = stored ? JSON.parse(stored) : null;
+        return syncfusionOfficeKitClipboardEntryMatches(entry, signature) ? entry.sfdt : null;
     } catch (error) {
         return null;
     }
@@ -3841,28 +3873,15 @@ function wireSyncfusionOfficeKitChrome(ribbon, editorContainer) {
                 }
             }
         }, true);
+        // Syncfusion sao chep bang mot div tam trong trang chinh (execCommand copy) -> nghe o document de nho ban SFDT.
         ["copy", "cut"].forEach(function (name) {
-            document.addEventListener(name, function () {
-                saveSyncfusionOfficeKitClipboard(getSyncfusionOfficeKitEditor(window.container));
+            document.addEventListener(name, function (event) {
+                saveSyncfusionOfficeKitClipboard(getSyncfusionOfficeKitEditor(window.container), event);
             }, false);
         });
-        document.addEventListener("paste", function (event) {
+        // Dan vao bo soan xu ly o patchWordKitPasteHandler (o nhap cua Syncfusion nam trong iframe, su kien khong toi day).
+        document.addEventListener("paste", function () {
             lockSyncfusionOfficeKitPageScroll();
-            // Bo nho tam la SFDT (copy tu chinh bo soan nay, ke ca tab / du an khac) -> dan thang, giu tron dinh dang.
-            var text = event.clipboardData && event.clipboardData.getData("text/plain");
-            var sfdt = syncfusionOfficeKitSfdtFromClipboard(text) || loadSyncfusionOfficeKitClipboard(text);
-            var editor = getSyncfusionOfficeKitEditor(window.container);
-            var editorModule = editor && editor.editor;
-            if (!sfdt || !editorModule || typeof editorModule.pasteContents !== "function") {
-                return;
-            }
-            event.preventDefault();
-            event.stopPropagation();
-            try {
-                editorModule.pasteContents(sfdt);
-            } catch (error) {
-                console.error("Office kit paste sfdt error:", error);
-            }
         }, true);
         window.addEventListener("resize", closeWordKitMenus);
         // Menu dung position:fixed -> trang cuon thi dong lai cho khoi troi lech (tru khi cuon ben trong menu).
@@ -3967,13 +3986,11 @@ function attachWordKitEditorEvents(editorContainer) {
         patchWordKitPasteOptions(editor);
         refresh();
     });
-    editor.addEventListener("serviceFailure", function (args) {
-        handleWordKitServiceFailure(editor, args);
-    });
     editor.addEventListener("keyDown", function (args) {
         handleWordKitKeyDown(editorContainer, editor, args);
     });
     patchWordKitPasteOptions(editor);
+    patchWordKitPasteHandler(editor);
     watchWordKitTableBorderDrag(editorContainer, editor);
     installWordKitContextMenu(editorContainer, editor);
     wireWordKitMiniToolbar(editorContainer, editor);
@@ -4421,39 +4438,166 @@ function patchWordKitPasteOptions(editor) {
     };
 }
 
-// Dich vu giu dinh dang (SystemClipboard) loi/khong ket noi duoc: truoc day Ctrl+V khong dan gi ca.
-// Gio dan tam dang chu thuong de nguoi dung khong mat noi dung vua copy.
-function handleWordKitServiceFailure(editor, args) {
-    var url = String((args && (args.url || (args.request && args.request.url))) || "");
-    if (url && url.indexOf("SystemClipboard") === -1) {
-        return;
-    }
+// Dan giu dinh dang khong qua may chu. Truoc day HTML/RTF trong bo nho tam duoc gui len dich vu .NET
+// (SystemClipboard) de doi sang SFDT; nay moi lan dan (Ctrl+V, menu chuot phai, nut Dan) di qua pasteInternal:
+//  - chu trong bo nho tam khop ban vua sao chep trong bo soan -> dan lai dung SFDT da sao chep (giu tron dinh dang);
+//  - co text/html (Word, trang web, Excel) -> doi HTML sang SFDT ngay tren trinh duyet (convertWordKitHtmlToSfdt);
+//  - chi co chu thuong / anh -> de Syncfusion tu dan (an RTF de khong goi dich vu).
+var wordKitPasteTextOnly = false;
 
-    var editorModule = editor && editor.editor;
-    // Syncfusion bao loi 2 lan cho cung mot lan dan (onFailure + onError) -> chi dan du phong 1 lan.
-    var request = editorModule ? editorModule.pasteRequestHandler : null;
-    if (request && editorModule.wordKitFallbackRequest === request) {
+function patchWordKitPasteHandler(editor) {
+    var editorModule = editor && (editor.editorModule || editor.editor);
+    if (!editorModule || editorModule.wordKitPasteHandled || typeof editorModule.pasteInternal !== "function") {
         return;
     }
-    if (editorModule) {
-        editorModule.wordKitFallbackRequest = request;
-    }
-    var text = editorModule ? editorModule.copiedTextContent : "";
-    if (!text || typeof editorModule.pasteContents !== "function") {
-        showWordKitToast("Không dán được: dịch vụ giữ định dạng không phản hồi.");
-        return;
-    }
+    var originalPasteInternal = editorModule.pasteInternal;
+    editorModule.wordKitPasteHandled = true;
+    editorModule.pasteInternal = function (event, pasteWindow) {
+        if (editor.enableLocalPaste) {
+            return originalPasteInternal.apply(editorModule, arguments);
+        }
+        var clipboard = (pasteWindow && pasteWindow.clipboardData) || (event && event.clipboardData) || null;
+        if (!clipboard) {
+            // Menu chuot phai "Dan" cua Syncfusion goi pasteInternal() khong kem su kien: doc bo nho tam nhu nut Dan.
+            pasteWordKitFromClipboard(editor, false);
+            return;
+        }
+        lockSyncfusionOfficeKitPageScroll();
+        handleWordKitPaste(editor, editorModule, originalPasteInternal, clipboard);
+    };
+}
 
+function readWordKitClipboardData(clipboard, type) {
     try {
-        editorModule.pasteContents(text);
-        showWordKitToast("Dịch vụ giữ định dạng không phản hồi — đã dán dạng chữ thường.");
+        return String(clipboard.getData(type) || "");
     } catch (error) {
-        console.error("Word kit plain paste fallback failed:", error);
+        return "";
+    }
+}
+
+function handleWordKitPaste(editor, editorModule, originalPasteInternal, clipboard) {
+    var text = readWordKitClipboardData(clipboard, "text/plain") || readWordKitClipboardData(clipboard, "Text");
+    var textOnly = wordKitPasteTextOnly || isWordKitInlineFormFill(editor);
+    var html = textOnly ? "" : readWordKitClipboardData(clipboard, "text/html");
+    var pastePlain = function () {
+        // Syncfusion dan chu xong goi applyPasteOptions: con giu SFDT cua lan dan truoc (copiedContent) thi dan lai
+        // noi dung cu de len chu vua dan. Xoa di de tuy chon dan dung chu thuong nay.
+        editorModule.copiedContent = "";
+        originalPasteInternal.call(editorModule, { clipboardData: createWordKitPlainClipboard(clipboard, text) });
+    };
+
+    if (!textOnly) {
+        var copiedSfdt = syncfusionOfficeKitSfdtFromClipboard(text) || loadSyncfusionOfficeKitClipboard(text);
+        if (copiedSfdt && pasteSyncfusionOfficeKitSfdt(editor, copiedSfdt, text)) {
+            return;
+        }
+        if (html && wordKitHtmlHasContent(html)) {
+            convertWordKitHtmlToSfdt(html, editor).then(function (sfdt) {
+                if (!sfdt || !pasteSyncfusionOfficeKitSfdt(editor, sfdt, text)) {
+                    pastePlain();
+                }
+            }).catch(function (error) {
+                console.error("Office kit HTML paste error:", error);
+                pastePlain();
+            });
+            return;
+        }
+    }
+    pastePlain();
+}
+
+// Bo nho tam chi con chu thuong (va anh): Syncfusion dan chu theo dinh dang cho con tro, hoac dan anh.
+function createWordKitPlainClipboard(clipboard, text) {
+    var items = null;
+    var files = null;
+    try {
+        items = clipboard.items;
+        files = clipboard.files;
+    } catch (error) {
+        // Het phien su kien paste.
+    }
+    return {
+        items: items,
+        files: files,
+        types: ["text/plain"],
+        getData: function (type) {
+            return /^text(\/plain)?$/i.test(String(type)) ? (text || "") : "";
+        },
+    };
+}
+
+function isWordKitInlineFormFill(editor) {
+    try {
+        return editor.documentHelper.protectionType === "FormFieldsOnly" && editor.selection.isInlineFormFillMode();
+    } catch (error) {
+        return false;
+    }
+}
+
+// Dan SFDT (doi tuong hoac chuoi JSON) nhu Syncfusion dan ket qua tu dich vu: hien nut tuy chon dan,
+// "Chi giu chu" dung chu thuong trong bo nho tam.
+function pasteSyncfusionOfficeKitSfdt(editor, sfdt, text) {
+    var editorModule = editor && (editor.editorModule || editor.editor);
+    var data = sfdt;
+    if (typeof data === "string") {
+        try {
+            data = JSON.parse(data);
+        } catch (error) {
+            return false;
+        }
+    }
+    if (!editorModule || !data || !Array.isArray(data.sections) || typeof editorModule.pasteContents !== "function") {
+        return false;
+    }
+
+    var selection = editor.selection;
+    var option = editor.defaultPasteOption || "KeepSourceFormatting";
+    try {
+        editorModule.currentPasteOptions = option;
+        editorModule.copiedTextContent = String(text || "").replace(/\r\n/g, "\r") || " ";
+        if (selection) {
+            selection.isViewPasteOptions = true;
+            if (selection.pasteElement) {
+                selection.pasteElement.style.display = "none";
+            }
+            rememberWordKitPasteTargetFormat(editorModule, selection);
+        }
+        if (typeof editorModule.pasteFormattedContent === "function") {
+            editorModule.pasteFormattedContent({ data: data });
+        } else {
+            editorModule.pasteContents(data);
+            if (option !== "KeepSourceFormatting" && typeof editorModule.applyPasteOptions === "function") {
+                editorModule.applyPasteOptions(option);
+            }
+        }
+        return true;
+    } catch (error) {
+        console.error("Office kit paste sfdt error:", error);
+        return false;
+    }
+}
+
+// Nhu Syncfusion: nho dinh dang cho con tro de tuy chon "Chi giu chu" dan chu theo dinh dang do.
+function rememberWordKitPasteTargetFormat(editorModule, selection) {
+    var api = typeof ej !== "undefined" && ej.documenteditor ? ej.documenteditor : null;
+    var paragraph = selection.start && selection.start.paragraph;
+    if (!api || !paragraph || !api.WCharacterFormat || !api.WParagraphFormat) {
+        return;
+    }
+    try {
+        var characterFormat = new api.WCharacterFormat();
+        characterFormat.copyFormat(paragraph.characterFormat);
+        var paragraphFormat = new api.WParagraphFormat();
+        paragraphFormat.copyFormat(paragraph.paragraphFormat);
+        editorModule.previousCharFormat = characterFormat;
+        editorModule.previousParaFormat = paragraphFormat;
+    } catch (error) {
+        // Khong quan trong: chi anh huong tuy chon "Chi giu chu".
     }
 }
 
 // Nut "Dan" tren ribbon: doc bo nho tam bang Clipboard API roi phat su kien paste vao o nhap an
-// cua editor -> di dung duong Ctrl+V (giu dinh dang qua dich vu). Trinh duyet chan thi nhac Ctrl+V.
+// cua editor -> di dung duong Ctrl+V. Trinh duyet chan (trang http, chua cho phep) thi nhac Ctrl+V.
 function pasteWordKitFromClipboard(editor, textOnly) {
     var clipboard = navigator.clipboard;
     var fallback = function () {
@@ -4473,6 +4617,7 @@ function pasteWordKitFromClipboard(editor, textOnly) {
         readPromise = clipboard.read().then(function (items) {
             var htmlPromise = null;
             var textPromise = null;
+            var imagePromise = null;
             items.forEach(function (item) {
                 if (!htmlPromise && item.types.indexOf("text/html") !== -1) {
                     htmlPromise = item.getType("text/html").then(function (blob) { return blob.text(); });
@@ -4480,12 +4625,15 @@ function pasteWordKitFromClipboard(editor, textOnly) {
                 if (!textPromise && item.types.indexOf("text/plain") !== -1) {
                     textPromise = item.getType("text/plain").then(function (blob) { return blob.text(); });
                 }
+                if (!imagePromise && item.types.indexOf("image/png") !== -1) {
+                    imagePromise = item.getType("image/png");
+                }
             });
-            return Promise.all([htmlPromise || "", textPromise || ""]);
+            return Promise.all([htmlPromise || "", textPromise || "", imagePromise]);
         });
     } else if (typeof clipboard.readText === "function") {
         readPromise = clipboard.readText().then(function (text) {
-            return ["", text];
+            return ["", text, null];
         });
     } else {
         fallback();
@@ -4493,17 +4641,22 @@ function pasteWordKitFromClipboard(editor, textOnly) {
     }
 
     readPromise.then(function (data) {
+        var editorModule = editor.editorModule || editor.editor;
+        if (!data[0] && !data[1] && data[2] && editorModule && typeof editorModule.pasteImage === "function") {
+            editorModule.pasteImage(data[2]);
+            return;
+        }
         if (!data[0] && !data[1]) {
             showWordKitToast("Bộ nhớ tạm đang trống.");
             return;
         }
-        if (!dispatchWordKitPaste(editor, textOnly ? "" : data[0], data[1])) {
+        if (!dispatchWordKitPaste(editor, textOnly ? "" : data[0], data[1], textOnly)) {
             fallback();
         }
     }).catch(fallback);
 }
 
-function dispatchWordKitPaste(editor, html, text) {
+function dispatchWordKitPaste(editor, html, text, textOnly) {
     var target = editor.documentHelper.editableDiv;
     var event;
     try {
@@ -4523,8 +4676,1185 @@ function dispatchWordKitPaste(editor, html, text) {
     if (editor.focusIn) {
         editor.focusIn();
     }
-    target.dispatchEvent(event);
+    // Su kien chay dong bo: co "chi giu chu" chi co hieu luc trong lan dan nay.
+    wordKitPasteTextOnly = Boolean(textOnly);
+    try {
+        target.dispatchEvent(event);
+    } finally {
+        wordKitPasteTextOnly = false;
+    }
     return true;
+}
+
+// ---------------------------------------------------------------------------
+// HTML trong bo nho tam -> SFDT (v19, ten thuoc tinh day du)
+// ---------------------------------------------------------------------------
+// HTML (Word, trang web, Excel) duoc dung tam trong shadow DOM an ngoai man hinh (da bo script, iframe, tai nguyen
+// ngoai) de trinh duyet tinh dinh dang that (getComputedStyle: class MsoNormal cua Word, the h1/b/i, style...). Sau do
+// doc tung khoi: doan, tieu de, xuong dong, dam/nghieng/gach chan/gach ngang, phong/co/mau/nen chu, can le, thut le,
+// gian dong, danh sach (ul/ol va doan MsoListParagraph cua Word), bang (colspan/rowspan theo vi tri o, do rong, vien,
+// nen o) va anh data:.
+var WORD_KIT_PASTE_SKIP_TAGS = /^(SCRIPT|STYLE|NOSCRIPT|TEMPLATE|HEAD|TITLE|META|LINK|BASE|IFRAME|FRAME|FRAMESET|OBJECT|EMBED|APPLET|AUDIO|VIDEO|SOURCE|TRACK|CANVAS|SVG|MATH|INPUT|SELECT|TEXTAREA|BUTTON|OPTION|DATALIST|MAP|AREA|XML)$/;
+var WORD_KIT_PASTE_REMOVE_SELECTOR = "script,noscript,template,iframe,frame,frameset,object,embed,applet,link,meta,base,audio,video,source,track,input,select,textarea,button";
+var WORD_KIT_HIGHLIGHT_COLORS = [
+    ["Yellow", 255, 255, 0], ["BrightGreen", 0, 255, 0], ["Turquoise", 0, 255, 255], ["Pink", 255, 0, 255],
+    ["Blue", 0, 0, 255], ["Red", 255, 0, 0], ["DarkBlue", 0, 0, 128], ["Teal", 0, 128, 128], ["Green", 0, 128, 0],
+    ["Violet", 128, 0, 128], ["DarkRed", 128, 0, 0], ["DarkYellow", 128, 128, 0], ["Gray50", 128, 128, 128],
+    ["Gray25", 192, 192, 192], ["Black", 0, 0, 0],
+];
+
+// HTML co gi de dan (chu, anh data:, bang)? Khong co (vd. chi mot anh file:/// cua Word) thi de Syncfusion dan anh/chu.
+function wordKitHtmlHasContent(html) {
+    try {
+        var body = new DOMParser().parseFromString(String(html), "text/html").body;
+        return Boolean(body && (/\S/.test(body.textContent || "") || body.querySelector("img[src^='data:image'],table")));
+    } catch (error) {
+        return false;
+    }
+}
+
+/**
+ * Doi HTML trong bo nho tam sang SFDT de editor.pasteContents. Tra ve Promise<doi tuong SFDT | null>.
+ */
+function convertWordKitHtmlToSfdt(html, editor) {
+    var prepared = prepareWordKitPasteHtml(html);
+    var sectionFormat = getWordKitPasteSectionFormat(editor);
+    var contentWidth = Math.max(72, sectionFormat.pageWidth - sectionFormat.leftMargin - sectionFormat.rightMargin);
+    var base = getWordKitPasteBaseFormat(editor);
+    var mounted = mountWordKitPasteHtml(prepared, contentWidth / 0.75, base);
+
+    return waitWordKitPasteImages(mounted.root, 2000).then(function () {
+        try {
+            return buildWordKitSfdtFromHtml(mounted.root, {
+                contentWidth: contentWidth,
+                sectionFormat: sectionFormat,
+                isWord: prepared.isWord,
+            });
+        } finally {
+            if (mounted.host.parentNode) {
+                mounted.host.parentNode.removeChild(mounted.host);
+            }
+        }
+    }, function (error) {
+        if (mounted.host.parentNode) {
+            mounted.host.parentNode.removeChild(mounted.host);
+        }
+        throw error;
+    });
+}
+
+// Phan tich HTML o tai lieu tro (khong chay script, khong tai gi), bo phan tu nguy hiem va moi lien ket tai nguyen
+// ngoai (anh khong phai data:, url() trong CSS, @import).
+function prepareWordKitPasteHtml(html) {
+    var source = String(html || "").replace(/<!--\s*(StartFragment|EndFragment)\s*-->/gi, "");
+    var parsed = new DOMParser().parseFromString(source, "text/html");
+    var stripUrls = function (value) {
+        return String(value || "").replace(/@import[^;]*;?/gi, "").replace(/url\s*\([^)]*\)/gi, "none");
+    };
+    var css = [];
+    Array.prototype.slice.call(parsed.querySelectorAll("style")).forEach(function (style) {
+        css.push(stripUrls(style.textContent));
+        style.parentNode.removeChild(style);
+    });
+    Array.prototype.slice.call(parsed.querySelectorAll(WORD_KIT_PASTE_REMOVE_SELECTOR)).forEach(function (element) {
+        if (element.parentNode) {
+            element.parentNode.removeChild(element);
+        }
+    });
+    Array.prototype.slice.call(parsed.body ? parsed.body.querySelectorAll("*") : []).forEach(function (element) {
+        if (element.tagName.toUpperCase() === "IMG" && !/^data:image\//i.test(element.getAttribute("src") || "")) {
+            if (element.parentNode) {
+                element.parentNode.removeChild(element);
+            }
+            return;
+        }
+        for (var index = element.attributes.length - 1; index >= 0; index -= 1) {
+            var name = element.attributes[index].name.toLowerCase();
+            if (name.indexOf("on") === 0 || name === "srcset" || name === "background" || name === "poster" || name === "href") {
+                element.removeAttribute(element.attributes[index].name);
+            }
+        }
+        var style = element.getAttribute("style");
+        if (style && /url\s*\(/i.test(style)) {
+            element.setAttribute("style", stripUrls(style));
+        }
+    });
+
+    return {
+        css: css.join("\n"),
+        body: parsed.body,
+        isWord: /urn:schemas-microsoft-com:office|class="?Mso|mso-/i.test(source),
+    };
+}
+
+function getWordKitPasteSectionFormat(editor) {
+    var source = editor && editor.selection ? editor.selection.sectionFormat : null;
+    var format = cloneSyncfusionOfficeKitObject(syncfusionOfficeKitDefaultSectionFormat);
+    ["pageWidth", "pageHeight", "leftMargin", "rightMargin", "topMargin", "bottomMargin", "headerDistance",
+        "footerDistance", "differentFirstPage", "differentOddAndEvenPages", "bidi"].forEach(function (key) {
+        try {
+            var value = source ? source[key] : undefined;
+            if (value !== undefined && value !== null && value !== "") {
+                format[key] = value;
+            }
+        } catch (error) {
+            // Giu gia tri mac dinh.
+        }
+    });
+    return format;
+}
+
+// Chu khong khai bao phong/co (thuong la HTML tu trang web) lay theo dinh dang cho con tro.
+function getWordKitPasteBaseFormat(editor) {
+    var format = { fontFamily: syncfusionOfficeKitDefaultCharacterFormat.fontFamily, fontSize: syncfusionOfficeKitDefaultCharacterFormat.fontSize };
+    try {
+        var current = editor.selection.characterFormat;
+        if (current.fontFamily) {
+            format.fontFamily = current.fontFamily;
+        }
+        if (Number(current.fontSize) > 0) {
+            format.fontSize = Number(current.fontSize);
+        }
+    } catch (error) {
+        // Dung mac dinh.
+    }
+    return format;
+}
+
+function mountWordKitPasteHtml(prepared, widthPx, base) {
+    var host = document.createElement("div");
+    host.setAttribute("aria-hidden", "true");
+    host.style.cssText = "all:initial;display:block;position:fixed;left:-30000px;top:0;width:" + widthPx + "px;"
+        + "pointer-events:none;z-index:-1;";
+    var shadow = typeof host.attachShadow === "function" ? host.attachShadow({ mode: "open" }) : host;
+    var style = document.createElement("style");
+    style.textContent = prepared.css;
+    var root = document.createElement("div");
+    root.style.cssText = "display:block;box-sizing:content-box;width:" + widthPx + "px;margin:0;padding:0;border:0;"
+        + "font-family:'" + String(base.fontFamily).replace(/'/g, "") + "';font-size:" + base.fontSize + "pt;"
+        + "font-weight:normal;font-style:normal;color:#000000;line-height:normal;text-align:start;white-space:normal;"
+        + "background:transparent;";
+    var body = prepared.body;
+    if (body) {
+        if (body.className) {
+            root.className = body.className;
+        }
+        while (body.firstChild) {
+            root.appendChild(document.importNode(body.firstChild, true));
+            body.removeChild(body.firstChild);
+        }
+    }
+    shadow.appendChild(style);
+    shadow.appendChild(root);
+    document.body.appendChild(host);
+    return { host: host, root: root };
+}
+
+function waitWordKitPasteImages(root, timeoutMs) {
+    var pending = Array.prototype.slice.call(root.querySelectorAll("img")).filter(function (image) {
+        return !image.complete;
+    });
+    if (!pending.length) {
+        return Promise.resolve();
+    }
+    return new Promise(function (resolve) {
+        var left = pending.length;
+        var timer = setTimeout(resolve, timeoutMs);
+        var done = function () {
+            left -= 1;
+            if (left <= 0) {
+                clearTimeout(timer);
+                resolve();
+            }
+        };
+        pending.forEach(function (image) {
+            image.addEventListener("load", done);
+            image.addEventListener("error", done);
+        });
+    });
+}
+
+// px (so hoac chuoi CSS da tinh "12px") -> pt.
+function wordKitPt(px) {
+    return Math.round((parseFloat(px) || 0) * 0.75 * 100) / 100;
+}
+
+function wordKitPx(value) {
+    return parseFloat(value) || 0;
+}
+
+function wordKitClamp(value, min, max) {
+    return Math.max(min, Math.min(max, value));
+}
+
+function wordKitHexColor(value) {
+    var match = /rgba?\(\s*(\d+)[,\s]+(\d+)[,\s]+(\d+)(?:[,\s/]+([\d.]+%?))?\s*\)/i.exec(String(value || ""));
+    if (!match) {
+        return "";
+    }
+    if (match[4] !== undefined && parseFloat(match[4]) === 0) {
+        return "";
+    }
+    return "#" + [match[1], match[2], match[3]].map(function (part) {
+        var hex = Math.min(255, Number(part)).toString(16);
+        return hex.length === 1 ? "0" + hex : hex;
+    }).join("").toUpperCase();
+}
+
+// Nen chu: SFDT v19 chi co mau to (highlight) co dinh -> chon mau gan nhat; nen trang/gan trang bo qua.
+function wordKitHighlightColor(hex) {
+    if (!hex) {
+        return "";
+    }
+    var red = parseInt(hex.slice(1, 3), 16);
+    var green = parseInt(hex.slice(3, 5), 16);
+    var blue = parseInt(hex.slice(5, 7), 16);
+    if (red > 235 && green > 235 && blue > 235) {
+        return "";
+    }
+    var best = "";
+    var bestDistance = Infinity;
+    WORD_KIT_HIGHLIGHT_COLORS.forEach(function (entry) {
+        var distance = Math.pow(entry[1] - red, 2) + Math.pow(entry[2] - green, 2) + Math.pow(entry[3] - blue, 2);
+        if (distance < bestDistance) {
+            bestDistance = distance;
+            best = entry[0];
+        }
+    });
+    return best;
+}
+
+function wordKitFontFamily(value, fallback) {
+    var first = String(value || "").split(",")[0].replace(/["']/g, "").trim();
+    var generic = {
+        "serif": "Times New Roman",
+        "sans-serif": "Arial",
+        "monospace": "Courier New",
+        "cursive": "Comic Sans MS",
+        "fantasy": "Impact",
+        "system-ui": "Segoe UI",
+        "-apple-system": "Segoe UI",
+        "ui-sans-serif": "Arial",
+        "ui-serif": "Times New Roman",
+        "ui-monospace": "Courier New",
+    };
+    return generic[first.toLowerCase()] || first || fallback;
+}
+
+// text-align da tinh (ke ca -webkit-center cua <center>, -internal-center cua <th>) -> can le SFDT.
+function wordKitTextAlignment(value) {
+    var align = String(value || "");
+    if (align.indexOf("center") !== -1) {
+        return "Center";
+    }
+    if (align.indexOf("right") !== -1 || align === "end") {
+        return "Right";
+    }
+    if (align === "justify") {
+        return "Justify";
+    }
+    return "Left";
+}
+
+// Do dai CSS (pt, px, in, cm, mm; so tron = px) -> pt.
+function wordKitCssLengthPt(value) {
+    var match = /^\s*([\d.]+)\s*(pt|px|in|cm|mm)?\s*$/i.exec(String(value || ""));
+    if (!match) {
+        return 0;
+    }
+    var number = parseFloat(match[1]);
+    var unit = String(match[2] || "px").toLowerCase();
+    var factor = { pt: 1, px: 0.75, "in": 72, cm: 72 / 2.54, mm: 72 / 25.4 }[unit];
+    return Math.round(number * factor * 100) / 100;
+}
+
+// Vien kieu 3D (inset/outset cua bang web mac dinh) dua ve net don cho giong Word.
+function wordKitBorderLineStyle(value) {
+    return {
+        dotted: "Dot",
+        dashed: "DashSmallGap",
+        double: "Double",
+    }[value] || "Single";
+}
+
+function buildWordKitSfdtFromHtml(root, options) {
+    var lists = [];
+    var abstractLists = [];
+    var wordLists = {};
+    var headingLevels = {};
+    var hasContent = false;
+    var styleCache = typeof WeakMap === "function" ? new WeakMap() : null;
+
+    var css = function (element) {
+        var style = styleCache ? styleCache.get(element) : null;
+        if (!style) {
+            style = window.getComputedStyle(element);
+            if (styleCache) {
+                styleCache.set(element, style);
+            }
+        }
+        return style;
+    };
+    var rawStyle = function (element) {
+        return element && element.getAttribute ? String(element.getAttribute("style") || "") : "";
+    };
+    var copyContext = function (context, changes) {
+        var next = {};
+        Object.keys(context).forEach(function (key) {
+            next[key] = context[key];
+        });
+        Object.keys(changes || {}).forEach(function (key) {
+            next[key] = changes[key];
+        });
+        return next;
+    };
+    var createContainer = function (element, widthPt) {
+        var rect = element.getBoundingClientRect();
+        var style = css(element);
+        return {
+            element: element,
+            blocks: [],
+            current: null,
+            lastParagraph: null,
+            lastElement: null,
+            width: widthPt,
+            left: rect.left + wordKitPx(style.borderLeftWidth) + wordKitPx(style.paddingLeft),
+            right: rect.right - wordKitPx(style.borderRightWidth) - wordKitPx(style.paddingRight),
+        };
+    };
+
+    // --- danh sach ---
+    var createList = function () {
+        var id = lists.length;
+        var levels = [];
+        for (var level = 0; level < 9; level += 1) {
+            levels.push({
+                characterFormat: {},
+                paragraphFormat: { leftIndent: 36 * (level + 1), firstLineIndent: -18, listFormat: {} },
+                followCharacter: "Tab",
+                listLevelPattern: "Arabic",
+                numberFormat: "%" + (level + 1) + ".",
+                restartLevel: level,
+                startAt: 1,
+            });
+        }
+        abstractLists.push({ abstractListId: id, levels: levels });
+        lists.push({ abstractListId: id, listId: id, levelOverrides: [] });
+        return { listId: id, levels: levels, defined: {} };
+    };
+    var bulletLevel = function (level, key) {
+        var bullet = wordKitBulletStyles[key] || wordKitBulletStyles.dot;
+        level.listLevelPattern = "Bullet";
+        level.numberFormat = bullet[0];
+        level.characterFormat = { fontFamily: bullet[1], fontFamilyBidi: bullet[1] };
+        level.startAt = 0;
+    };
+    var defineHtmlListLevel = function (record, levelIndex, listElement, style) {
+        if (record.defined[levelIndex]) {
+            return;
+        }
+        record.defined[levelIndex] = true;
+        var level = record.levels[levelIndex];
+        var type = String(style.listStyleType || "");
+        var ordered = listElement.tagName.toUpperCase() === "OL";
+        var patterns = {
+            "decimal": "Arabic",
+            "decimal-leading-zero": "Arabic",
+            "lower-alpha": "LowLetter",
+            "lower-latin": "LowLetter",
+            "upper-alpha": "UpLetter",
+            "upper-latin": "UpLetter",
+            "lower-roman": "LowRoman",
+            "upper-roman": "UpRoman",
+        };
+        if (patterns[type] || (ordered && ["disc", "circle", "square"].indexOf(type) === -1)) {
+            level.listLevelPattern = patterns[type] || "Arabic";
+            level.numberFormat = "%" + (levelIndex + 1) + ".";
+            level.startAt = ordered ? (parseInt(listElement.getAttribute("start"), 10) || 1) : 1;
+            return;
+        }
+        bulletLevel(level, type === "circle" ? "circle" : (type === "square" ? "square" : (type === "disc" ? "dot" : ["dot", "circle", "square"][levelIndex % 3])));
+    };
+    // Doan danh sach cua Word: <p style="mso-list:l0 level1 lfo1"> va ky hieu dau dong nam trong <span mso-list:Ignore>.
+    var defineWordListLevel = function (level, levelIndex, marker, markerFont) {
+        var number = /^(\(?)(\d+(?:\.\d+)*)(\.?\)?)$/.exec(marker);
+        if (number) {
+            var parts = number[2].split(".");
+            var first = levelIndex - parts.length + 2;
+            var placeholders = first >= 1
+                ? parts.map(function (part, index) { return "%" + (first + index); }).join(".")
+                : "%" + (levelIndex + 1);
+            level.listLevelPattern = "Arabic";
+            level.numberFormat = number[1] + placeholders + number[3];
+            level.startAt = parseInt(parts[parts.length - 1], 10) || 1;
+            return;
+        }
+        var letter = /^(\(?)([a-zA-Z]+)([.)])$/.exec(marker);
+        if (letter) {
+            var value = letter[2];
+            var lower = value === value.toLowerCase();
+            var isRoman = /^[ivxlcdm]+$/i.test(value) && (value.length > 1 || /^i$/i.test(value));
+            level.numberFormat = letter[1] + "%" + (levelIndex + 1) + letter[3];
+            if (isRoman) {
+                level.listLevelPattern = lower ? "LowRoman" : "UpRoman";
+                level.startAt = wordKitRomanValue(value) || 1;
+            } else {
+                level.listLevelPattern = lower ? "LowLetter" : "UpLetter";
+                level.startAt = value.length === 1 ? value.toLowerCase().charCodeAt(0) - 96 : 1;
+            }
+            return;
+        }
+        var symbol = marker.charAt(0) || "·";
+        var font = markerFont || "Symbol";
+        if (/symbol|wingdings|webdings/i.test(font) && symbol.charCodeAt(0) < 256) {
+            symbol = String.fromCharCode(0xf000 + symbol.charCodeAt(0));
+        }
+        level.listLevelPattern = "Bullet";
+        level.numberFormat = symbol;
+        level.characterFormat = { fontFamily: font, fontFamilyBidi: font };
+        level.startAt = 0;
+    };
+    var applyWordList = function (element, format) {
+        if (!element || element.wordKitListed || !element.querySelectorAll) {
+            return;
+        }
+        var match = /mso-list\s*:\s*(l\d+)\s+level(\d+)\s+(lfo\d+)/i.exec(rawStyle(element));
+        if (!match) {
+            return;
+        }
+        element.wordKitListed = true;
+        var markerElement = null;
+        Array.prototype.some.call(element.querySelectorAll("span"), function (span) {
+            if (/mso-list\s*:\s*ignore/i.test(rawStyle(span))) {
+                markerElement = span;
+                return true;
+            }
+            return false;
+        });
+        var marker = markerElement ? String(markerElement.textContent || "").replace(/[\s ]+/g, "") : "";
+        var levelIndex = wordKitClamp(parseInt(match[2], 10) - 1, 0, 8);
+        var key = match[1] + ":" + match[3];
+        var record = wordLists[key] || (wordLists[key] = createList());
+        var level = record.levels[levelIndex];
+        if (!record.defined[levelIndex]) {
+            record.defined[levelIndex] = true;
+            defineWordListLevel(level, levelIndex, marker, markerElement ? wordKitFontFamily(css(markerElement).fontFamily, "Symbol") : "Symbol");
+            level.paragraphFormat = { leftIndent: format.leftIndent, firstLineIndent: format.firstLineIndent, listFormat: {} };
+        }
+        format.listFormat = { listId: record.listId, listLevelNumber: levelIndex };
+    };
+
+    // --- dinh dang ---
+    var characterFormatOf = function (element, context) {
+        var style = css(element);
+        var size = context.baselineSize || wordKitPt(style.fontSize);
+        var weight = String(style.fontWeight);
+        var fontFamily = wordKitFontFamily(style.fontFamily, syncfusionOfficeKitDefaultCharacterFormat.fontFamily);
+        var fontSize = Math.round(size * 2) / 2 || syncfusionOfficeKitDefaultCharacterFormat.fontSize;
+        return {
+            bold: weight === "bold" || weight === "bolder" || parseInt(weight, 10) >= 600,
+            italic: style.fontStyle === "italic" || String(style.fontStyle).indexOf("oblique") === 0,
+            underline: context.decoration.indexOf("u") !== -1 ? "Single" : "None",
+            strikethrough: context.decoration.indexOf("s") !== -1 ? "SingleStrike" : "None",
+            baselineAlignment: context.baseline,
+            highlightColor: context.highlight || "NoColor",
+            fontSize: fontSize,
+            fontFamily: fontFamily,
+            fontColor: wordKitHexColor(style.color) || "#000000",
+            fontSizeBidi: fontSize,
+            fontFamilyBidi: fontFamily,
+        };
+    };
+    var lineSpacingOf = function (element, style, format) {
+        var raw = rawStyle(element);
+        var declared = /(?:^|;)\s*line-height\s*:\s*([\d.]+)\s*(%|pt|px|in|cm|mm)?/i.exec(raw);
+        var fontPx = wordKitPx(style.fontSize) || 16;
+        var lineHeight = String(style.lineHeight);
+        var multiple = 1;
+        if (declared && declared[2] === "%") {
+            multiple = parseFloat(declared[1]) / 100;
+        } else if (declared && declared[2] && /px$/.test(lineHeight)) {
+            format.lineSpacingType = /mso-line-height-rule\s*:\s*exactly/i.test(raw) ? "Exactly" : "AtLeast";
+            format.lineSpacing = wordKitPt(lineHeight);
+            return;
+        } else if (/px$/.test(lineHeight)) {
+            // Word: ti le theo dong don; trang web: line-height tinh theo co chu, dong don ~1.15 co chu.
+            multiple = wordKitPx(lineHeight) / fontPx / (options.isWord ? 1 : 1.15);
+        }
+        multiple = Math.round(wordKitClamp(multiple, 0.5, 5) * 100) / 100;
+        format.lineSpacingType = "Multiple";
+        format.lineSpacing = Math.abs(multiple - 1) < 0.05 ? 1 : multiple;
+    };
+    var paragraphFormatOf = function (element, container, context) {
+        var style = css(element);
+        var format = {
+            styleName: "Normal",
+            textAlignment: wordKitTextAlignment(style.textAlign),
+            leftIndent: 0,
+            rightIndent: 0,
+            firstLineIndent: 0,
+            beforeSpacing: 0,
+            afterSpacing: 0,
+            listFormat: {},
+        };
+        if (element === root) {
+            // Chu dan khong nam trong khoi nao (vai chu chep tu trang web): khong doi can le/thut le cua doan dich.
+            return { listFormat: {} };
+        }
+        if (element !== container.element) {
+            var rect = element.getBoundingClientRect();
+            var left = rect.left + wordKitPx(style.borderLeftWidth) + wordKitPx(style.paddingLeft);
+            var right = rect.right - wordKitPx(style.borderRightWidth) - wordKitPx(style.paddingRight);
+            format.leftIndent = wordKitClamp(wordKitPt(left - container.left), 0, 432);
+            format.rightIndent = wordKitClamp(wordKitPt(container.right - right), 0, 432);
+            if (!element.wordKitSpaced) {
+                element.wordKitSpaced = true;
+                var before = wordKitPt(style.marginTop);
+                var previous = container.blocks[container.blocks.length - 1];
+                if (!options.isWord && previous && previous === container.lastParagraph) {
+                    // Trang web: le tren/duoi cua hai doan lien nhau gop lam mot (margin collapsing).
+                    before = Math.max(0, before - (previous.paragraphFormat.afterSpacing || 0));
+                }
+                format.beforeSpacing = wordKitClamp(before, 0, 72);
+            }
+        }
+        var indent = String(style.textIndent || "");
+        var indentPx = /%$/.test(indent) ? parseFloat(indent) / 100 * (container.right - container.left) : wordKitPx(indent);
+        format.firstLineIndent = wordKitClamp(wordKitPt(indentPx), -format.leftIndent - 72, 432);
+        lineSpacingOf(element, style, format);
+        var heading = /^H([1-6])$/i.exec(element.tagName);
+        if (heading) {
+            format.styleName = "Heading " + heading[1];
+            headingLevels[heading[1]] = true;
+        }
+        return format;
+    };
+
+    // --- doan ---
+    var ensureParagraph = function (container, context) {
+        if (container.current) {
+            return container.current;
+        }
+        var element = context.blockElement || container.element;
+        var format = paragraphFormatOf(element, container, context);
+        var pending = context.pendingList;
+        if (pending) {
+            if (!pending.used) {
+                pending.used = true;
+                format.listFormat = { listId: pending.listId, listLevelNumber: pending.level };
+                format.firstLineIndent = pending.firstLineIndent;
+            } else {
+                format.firstLineIndent = 0;
+            }
+            format.leftIndent = pending.leftIndent;
+        } else if (element !== root) {
+            applyWordList(element, format);
+        }
+        container.current = {
+            element: element,
+            endsWithSpace: true,
+            lastKey: null,
+            block: { paragraphFormat: format, characterFormat: characterFormatOf(element, context), inlines: [] },
+        };
+        return container.current;
+    };
+    var pushInline = function (paragraph, inline) {
+        var inlines = paragraph.block.inlines;
+        if (typeof inline.text === "string") {
+            var key = JSON.stringify(inline.characterFormat);
+            var last = inlines[inlines.length - 1];
+            if (last && typeof last.text === "string" && paragraph.lastKey === key) {
+                last.text += inline.text;
+                return;
+            }
+            paragraph.lastKey = key;
+        } else {
+            paragraph.lastKey = null;
+        }
+        inlines.push(inline);
+    };
+    var finishParagraph = function (container) {
+        var current = container.current;
+        if (!current) {
+            return;
+        }
+        container.current = null;
+        var block = current.block;
+        var inlines = block.inlines;
+        var last = inlines[inlines.length - 1];
+        if (last && typeof last.text === "string") {
+            last.text = last.text.replace(/ +$/, "");
+            // <br> cuoi khoi khong tao them dong trong (giong trinh duyet).
+            if (/\v$/.test(last.text)) {
+                last.text = last.text.slice(0, -1);
+            }
+            if (!last.text) {
+                inlines.pop();
+            }
+        }
+        // Doan chi co khoang trang (o:p &nbsp; cua Word) la doan trong; giu dinh dang cho dau doan.
+        var onlySpaces = inlines.length > 0 && inlines.every(function (inline) {
+            return typeof inline.text === "string" && /^[ \t ]*$/.test(inline.text);
+        });
+        if (inlines.length) {
+            block.characterFormat = inlines[inlines.length - 1].characterFormat || block.characterFormat;
+        }
+        if (onlySpaces) {
+            block.inlines = [];
+        }
+        container.blocks.push(block);
+        container.lastParagraph = block;
+        container.lastElement = current.element;
+    };
+
+    // --- duyet cay ---
+    var appendText = function (node, container, context) {
+        var parent = node.parentNode;
+        var style = css(parent);
+        if (style.visibility === "hidden" || style.visibility === "collapse") {
+            return;
+        }
+        var text = String(node.nodeValue || "");
+        var preserve = /^(pre|pre-wrap|pre-line|break-spaces)$/.test(style.whiteSpace);
+        if (preserve) {
+            text = text.replace(/\r\n?/g, "\n");
+            if (style.whiteSpace === "pre-line") {
+                text = text.replace(/[ \t]+/g, " ");
+            }
+            text = text.replace(/\n/g, "\v");
+        } else {
+            text = text.replace(/[ \t\n\r\f]+/g, " ");
+            if (text === " " && !container.current) {
+                return;
+            }
+        }
+        var paragraph = ensureParagraph(container, context);
+        if (!preserve && paragraph.endsWithSpace && text.charAt(0) === " ") {
+            text = text.slice(1);
+        }
+        if (!text) {
+            return;
+        }
+        if (context.uppercase) {
+            text = text.toUpperCase();
+        }
+        pushInline(paragraph, { characterFormat: characterFormatOf(parent, context), text: text });
+        paragraph.endsWithSpace = /[ \v]$/.test(text);
+        if (/\S/.test(text)) {
+            hasContent = true;
+        }
+    };
+    var appendSpecial = function (element, container, context, text) {
+        var paragraph = ensureParagraph(container, context);
+        pushInline(paragraph, { characterFormat: characterFormatOf(element.parentNode || element, context), text: text });
+        paragraph.endsWithSpace = true;
+    };
+    var appendImage = function (image, container, context) {
+        var source = image.getAttribute("src") || "";
+        if (!/^data:image\//i.test(source)) {
+            return;
+        }
+        var rect = image.getBoundingClientRect();
+        var width = rect.width || image.naturalWidth;
+        var height = rect.height || image.naturalHeight;
+        if (!width || !height) {
+            return;
+        }
+        var maxWidth = container.width / 0.75;
+        if (width > maxWidth) {
+            height = height * maxWidth / width;
+            width = maxWidth;
+        }
+        var imageString = normalizeWordKitPasteImage(image, source);
+        if (!imageString) {
+            return;
+        }
+        var paragraph = ensureParagraph(container, context);
+        pushInline(paragraph, {
+            characterFormat: {},
+            imageString: imageString,
+            isMetaFile: false,
+            isCompressed: false,
+            width: wordKitPt(width),
+            height: wordKitPt(height),
+            iscrop: false,
+            name: "",
+            alternativeText: String(image.getAttribute("alt") || ""),
+            title: "",
+            verticalPosition: 0,
+            horizontalPosition: 0,
+            textWrappingStyle: "Inline",
+        });
+        paragraph.endsWithSpace = false;
+        hasContent = true;
+    };
+    var inheritContext = function (element, style, context) {
+        var next = copyContext(context);
+        var line = String(style.textDecorationLine || style.textDecoration || "");
+        if (line.indexOf("underline") !== -1 && next.decoration.indexOf("u") === -1) {
+            next.decoration += "u";
+        }
+        if (line.indexOf("line-through") !== -1 && next.decoration.indexOf("s") === -1) {
+            next.decoration += "s";
+        }
+        if (String(style.display).indexOf("inline") === 0 || style.display === "contents") {
+            var background = wordKitHexColor(style.backgroundColor);
+            if (background) {
+                next.highlight = wordKitHighlightColor(background);
+            }
+            if (style.verticalAlign === "super" || style.verticalAlign === "sub") {
+                next.baseline = style.verticalAlign === "super" ? "Superscript" : "Subscript";
+                next.baselineSize = context.baselineSize || wordKitPt(css(element.parentNode).fontSize);
+            }
+        }
+        if (style.textTransform === "uppercase") {
+            next.uppercase = true;
+        } else if (style.textTransform === "none" && element.style && element.style.textTransform) {
+            next.uppercase = false;
+        }
+        return next;
+    };
+    var walkChildren = function (element, container, context) {
+        for (var node = element.firstChild; node; node = node.nextSibling) {
+            if (node.nodeType === 3) {
+                appendText(node, container, context);
+            } else if (node.nodeType === 1) {
+                walkElement(node, container, context);
+            }
+        }
+    };
+    var walkBlock = function (element, container, context) {
+        finishParagraph(container);
+        var before = container.blocks.length;
+        var next = copyContext(context, { blockElement: element });
+        walkChildren(element, container, next);
+        finishParagraph(container);
+        if (container.blocks.length === before) {
+            // Khoi rong nhung chiem cho (vd. <p><br></p>) -> mot doan trong.
+            var tag = element.tagName.toUpperCase();
+            if (tag === "LI" || element.getBoundingClientRect().height > 0.5) {
+                ensureParagraph(container, next);
+                finishParagraph(container);
+            }
+        }
+        // Le duoi cua khoi dat cho doan cuoi cung cua khoi do.
+        if (container.lastElement === element && container.lastParagraph
+            && container.blocks[container.blocks.length - 1] === container.lastParagraph) {
+            container.lastParagraph.paragraphFormat.afterSpacing = wordKitClamp(wordKitPt(css(element).marginBottom), 0, 72);
+        }
+    };
+    var walkList = function (element, container, context, style) {
+        finishParagraph(container);
+        var parent = context.htmlList;
+        var levelIndex = parent ? Math.min(parent.level + 1, 8) : 0;
+        var record = parent ? parent.record : createList();
+        defineHtmlListLevel(record, levelIndex, element, style);
+        walkBlock(element, container, copyContext(context, { htmlList: { record: record, level: levelIndex }, pendingList: null }));
+    };
+    var walkListItem = function (element, container, context, style) {
+        var list = context.htmlList;
+        if (!list || style.display !== "list-item" || style.listStyleType === "none") {
+            walkBlock(element, container, copyContext(context, { pendingList: null }));
+            return;
+        }
+        var level = list.record.levels[list.level];
+        walkBlock(element, container, copyContext(context, {
+            pendingList: {
+                listId: list.record.listId,
+                level: list.level,
+                used: false,
+                leftIndent: level.paragraphFormat.leftIndent,
+                firstLineIndent: level.paragraphFormat.firstLineIndent,
+            },
+        }));
+    };
+    var walkElement = function (element, container, context) {
+        var tag = element.tagName.toUpperCase();
+        if (WORD_KIT_PASTE_SKIP_TAGS.test(tag)) {
+            return;
+        }
+        var raw = rawStyle(element);
+        if (/mso-list\s*:\s*ignore|mso-hide\s*:\s*all|display\s*:\s*none/i.test(raw)) {
+            return;
+        }
+        var style = css(element);
+        if (style.display === "none") {
+            return;
+        }
+        if (tag === "BR") {
+            appendSpecial(element, container, context, "\v");
+            return;
+        }
+        if (tag === "IMG") {
+            appendImage(element, container, context);
+            return;
+        }
+        var tabs = /mso-tab-count\s*:\s*(\d+)/i.exec(raw);
+        if (tabs) {
+            appendSpecial(element, container, context, new Array(Math.min(20, parseInt(tabs[1], 10) || 1) + 1).join("\t"));
+            return;
+        }
+        var next = inheritContext(element, style, context);
+        if (tag === "TABLE") {
+            walkTable(element, container, next);
+            return;
+        }
+        if (tag === "UL" || tag === "OL") {
+            walkList(element, container, next, style);
+            return;
+        }
+        if (tag === "LI") {
+            walkListItem(element, container, next, style);
+            return;
+        }
+        var display = String(style.display);
+        if (display.indexOf("inline") === 0 || display === "contents" || display === "ruby" || display === "ruby-text") {
+            walkChildren(element, container, next);
+            return;
+        }
+        walkBlock(element, container, next);
+    };
+
+    // --- bang ---
+    var borderOf = function (style, side) {
+        var lineStyle = style["border" + side + "Style"];
+        var width = wordKitPx(style["border" + side + "Width"]);
+        if (!width || lineStyle === "none" || lineStyle === "hidden") {
+            return null;
+        }
+        return {
+            lineStyle: wordKitBorderLineStyle(lineStyle),
+            lineWidth: Math.max(0.25, wordKitPt(width)),
+            color: wordKitHexColor(style["border" + side + "Color"]) || "#000000",
+        };
+    };
+    var walkTable = function (table, container, context) {
+        finishParagraph(container);
+        if (table.caption) {
+            walkBlock(table.caption, container, context);
+        }
+        var tableStyle = css(table);
+        var rows = [];
+        Array.prototype.forEach.call(table.rows || [], function (row) {
+            if (css(row).display === "none") {
+                return;
+            }
+            var cells = [];
+            Array.prototype.forEach.call(row.cells, function (cell) {
+                var cellStyle = css(cell);
+                if (cellStyle.display !== "none") {
+                    cells.push({ element: cell, style: cellStyle, rect: cell.getBoundingClientRect() });
+                }
+            });
+            if (cells.length) {
+                rows.push({ element: row, rect: row.getBoundingClientRect(), cells: cells });
+            }
+        });
+        if (!rows.length) {
+            return;
+        }
+
+        // Cot cua bang = cac bien trai/phai cua o (gop bien lech nhau vai diem, ke ca khoang cach o).
+        var spacing = tableStyle.borderCollapse === "separate" ? wordKitPx(String(tableStyle.borderSpacing).split(" ")[0]) : 0;
+        var tolerance = 3 + spacing;
+        var edges = [];
+        rows.forEach(function (row) {
+            row.cells.forEach(function (cell) {
+                edges.push(cell.rect.left, cell.rect.right);
+            });
+        });
+        edges.sort(function (a, b) {
+            return a - b;
+        });
+        var columns = [];
+        edges.forEach(function (x) {
+            if (!columns.length || x - columns[columns.length - 1] > tolerance) {
+                columns.push(x);
+            }
+        });
+        if (columns.length < 2) {
+            walkBlock(table, container, context);
+            return;
+        }
+        var columnAt = function (x) {
+            var best = 0;
+            columns.forEach(function (position, index) {
+                if (Math.abs(position - x) < Math.abs(columns[best] - x)) {
+                    best = index;
+                }
+            });
+            return best;
+        };
+
+        rows.forEach(function (row) {
+            row.cells.forEach(function (cell) {
+                cell.start = columnAt(cell.rect.left);
+                cell.end = Math.max(cell.start + 1, columnAt(cell.rect.right));
+            });
+        });
+
+        var tableRect = table.getBoundingClientRect();
+        var leftIndent = wordKitClamp(wordKitPt(tableRect.left - container.left), 0, container.width / 2);
+        var available = Math.max(36, container.width - leftIndent);
+        var gridPx = [];
+        for (var columnIndex = 1; columnIndex < columns.length; columnIndex += 1) {
+            gridPx.push(columns[columnIndex] - columns[columnIndex - 1]);
+        }
+        if (options.isWord) {
+            // Word ghi do rong o (width) da gom le trong o; trinh duyet cong them padding -> tru lai cho dung do rong goc.
+            gridPx = gridPx.map(function (width, index) {
+                var single = null;
+                rows.some(function (row) {
+                    return row.cells.some(function (cell) {
+                        if (cell.start === index && cell.end === index + 1) {
+                            single = cell;
+                            return true;
+                        }
+                        return false;
+                    });
+                });
+                if (!single) {
+                    return width;
+                }
+                var inner = wordKitPx(single.style.paddingLeft) + wordKitPx(single.style.paddingRight)
+                    + (wordKitPx(single.style.borderLeftWidth) + wordKitPx(single.style.borderRightWidth)) / 2;
+                return Math.max(width / 2, width - inner);
+            });
+        }
+        var total = wordKitPt(gridPx.reduce(function (sum, width) { return sum + width; }, 0));
+        var scale = total > available ? available / total : 1;
+        var grid = gridPx.map(function (width) {
+            return Math.round(wordKitPt(width) * scale * 100) / 100;
+        });
+
+        // Vi tri o: cot bat dau, so cot, so dong (theo toa do; o gop dong chi nam o dong dau).
+        var occupancy = rows.map(function () {
+            return [];
+        });
+        rows.forEach(function (row, rowIndex) {
+            row.cells.forEach(function (cell) {
+                var start = cell.start;
+                var end = cell.end;
+                var rowSpan = 1;
+                for (var below = rowIndex + 1; below < rows.length && rows[below].rect.top < cell.rect.bottom - 2; below += 1) {
+                    rowSpan += 1;
+                }
+                cell.rowIndex = rowIndex;
+                cell.rowSpan = rowSpan;
+                cell.own = {
+                    Top: borderOf(cell.style, "Top"),
+                    Right: borderOf(cell.style, "Right"),
+                    Bottom: borderOf(cell.style, "Bottom"),
+                    Left: borderOf(cell.style, "Left"),
+                };
+                for (var r = rowIndex; r < rowIndex + rowSpan; r += 1) {
+                    for (var c = start; c < end; c += 1) {
+                        occupancy[r][c] = occupancy[r][c] || cell;
+                    }
+                }
+            });
+        });
+        var none = function () {
+            return { lineStyle: "None" };
+        };
+        var sharedBorder = function (cell, side) {
+            if (cell.own[side]) {
+                return cell.own[side];
+            }
+            // Bang gop vien (border-collapse): vien chung giua hai o co the chi khai bao o o ben canh.
+            var neighbour = null;
+            if (side === "Left" && cell.start > 0) {
+                neighbour = occupancy[cell.rowIndex][cell.start - 1];
+                return neighbour && neighbour.own.Right ? neighbour.own.Right : null;
+            }
+            if (side === "Right") {
+                neighbour = occupancy[cell.rowIndex][cell.end];
+                return neighbour && neighbour.own.Left ? neighbour.own.Left : null;
+            }
+            if (side === "Top" && cell.rowIndex > 0) {
+                neighbour = occupancy[cell.rowIndex - 1][cell.start];
+                return neighbour && neighbour !== cell && neighbour.own.Bottom ? neighbour.own.Bottom : null;
+            }
+            if (side === "Bottom" && occupancy[cell.rowIndex + cell.rowSpan]) {
+                neighbour = occupancy[cell.rowIndex + cell.rowSpan][cell.start];
+                return neighbour && neighbour.own.Top ? neighbour.own.Top : null;
+            }
+            return null;
+        };
+        var firstStyle = rows[0].cells[0].style;
+        var margin = function (value) {
+            return wordKitClamp(wordKitPt(value), 0, 30);
+        };
+        var sfdtRows = rows.map(function (row) {
+            var height = Math.max(
+                wordKitCssLengthPt(row.element.style.height || row.element.getAttribute("height")),
+                row.cells.reduce(function (max, cell) {
+                    return Math.max(max, wordKitCssLengthPt(cell.element.style.height || cell.element.getAttribute("height")));
+                }, 0)
+            );
+            var rowBackground = wordKitHexColor(css(row.element).backgroundColor) || wordKitHexColor(tableStyle.backgroundColor);
+            return {
+                cells: row.cells.map(function (cell) {
+                    var width = grid.slice(cell.start, cell.end).reduce(function (sum, value) { return sum + value; }, 0);
+                    var leftMargin = margin(cell.style.paddingLeft);
+                    var rightMargin = margin(cell.style.paddingRight);
+                    var cellContainer = createContainer(cell.element, Math.max(18, width - leftMargin - rightMargin));
+                    var cellContext = {
+                        blockElement: cell.element,
+                        decoration: context.decoration,
+                        highlight: "",
+                        baseline: "Normal",
+                        baselineSize: 0,
+                        uppercase: context.uppercase,
+                        htmlList: null,
+                        pendingList: null,
+                    };
+                    walkChildren(cell.element, cellContainer, cellContext);
+                    finishParagraph(cellContainer);
+                    var blocks = cellContainer.blocks;
+                    if (!blocks.length || !blocks[blocks.length - 1].inlines) {
+                        ensureParagraph(cellContainer, cellContext);
+                        finishParagraph(cellContainer);
+                    }
+                    var background = wordKitHexColor(cell.style.backgroundColor) || rowBackground;
+                    var verticalAlign = cell.style.verticalAlign;
+                    return {
+                        blocks: blocks,
+                        cellFormat: {
+                            columnSpan: cell.end - cell.start,
+                            rowSpan: cell.rowSpan,
+                            preferredWidth: Math.round(width * 100) / 100,
+                            preferredWidthType: "Point",
+                            cellWidth: Math.round(width * 100) / 100,
+                            verticalAlignment: verticalAlign === "middle" ? "Center" : (verticalAlign === "bottom" ? "Bottom" : "Top"),
+                            leftMargin: leftMargin,
+                            rightMargin: rightMargin,
+                            topMargin: margin(cell.style.paddingTop),
+                            bottomMargin: margin(cell.style.paddingBottom),
+                            shading: background ? { backgroundColor: background, foregroundColor: "empty", textureStyle: "TextureNone" } : {},
+                            borders: {
+                                top: sharedBorder(cell, "Top") || none(),
+                                left: sharedBorder(cell, "Left") || none(),
+                                right: sharedBorder(cell, "Right") || none(),
+                                bottom: sharedBorder(cell, "Bottom") || none(),
+                                diagonalDown: {},
+                                diagonalUp: {},
+                                horizontal: {},
+                                vertical: {},
+                            },
+                        },
+                        columnIndex: cell.start,
+                    };
+                }),
+                rowFormat: {
+                    height: height,
+                    heightType: height ? "AtLeast" : "Auto",
+                    allowBreakAcrossPages: true,
+                    isHeader: false,
+                    gridBefore: 0,
+                    gridAfter: 0,
+                    borders: { top: {}, left: {}, right: {}, bottom: {}, diagonalDown: {}, diagonalUp: {}, horizontal: {}, vertical: {} },
+                },
+            };
+        });
+
+        var leftGap = tableRect.left - container.left;
+        var rightGap = container.right - tableRect.right;
+        var alignment = /center/i.test(table.getAttribute("align") || "") || (leftGap > 2 && Math.abs(leftGap - rightGap) < 2)
+            ? "Center"
+            : (/right/i.test(table.getAttribute("align") || "") ? "Right" : "Left");
+        container.blocks.push({
+            rows: sfdtRows,
+            grid: grid,
+            tableFormat: {
+                borders: {
+                    top: none(), left: none(), right: none(), bottom: none(),
+                    diagonalDown: {}, diagonalUp: {}, horizontal: none(), vertical: none(),
+                },
+                shading: {},
+                leftIndent: alignment === "Left" ? leftIndent : 0,
+                tableAlignment: alignment,
+                topMargin: margin(firstStyle.paddingTop),
+                bottomMargin: margin(firstStyle.paddingBottom),
+                leftMargin: margin(firstStyle.paddingLeft),
+                rightMargin: margin(firstStyle.paddingRight),
+                cellSpacing: 0,
+                preferredWidthType: "Auto",
+            },
+            columnCount: grid.length,
+        });
+        container.lastParagraph = null;
+        container.lastElement = table;
+        hasContent = true;
+    };
+
+    var rootContainer = createContainer(root, options.contentWidth);
+    walkChildren(root, rootContainer, {
+        blockElement: root,
+        decoration: "",
+        highlight: "",
+        baseline: "Normal",
+        baselineSize: 0,
+        uppercase: false,
+        htmlList: null,
+        pendingList: null,
+    });
+    finishParagraph(rootContainer);
+    if (!hasContent || !rootContainer.blocks.length) {
+        return null;
+    }
+
+    var styles = Object.keys(headingLevels).map(function (level) {
+        return {
+            name: "Heading " + level,
+            type: "Paragraph",
+            paragraphFormat: { outlineLevel: "Level" + level, listFormat: {} },
+            characterFormat: {},
+            basedOn: "Normal",
+            next: "Normal",
+        };
+    });
+    return {
+        sections: [{
+            sectionFormat: options.sectionFormat,
+            blocks: rootContainer.blocks,
+            headersFooters: {},
+        }],
+        lists: lists,
+        abstractLists: abstractLists,
+        styles: styles,
+    };
+}
+
+function wordKitRomanValue(value) {
+    var numerals = { i: 1, v: 5, x: 10, l: 50, c: 100, d: 500, m: 1000 };
+    var text = String(value || "").toLowerCase();
+    var total = 0;
+    for (var index = 0; index < text.length; index += 1) {
+        var current = numerals[text.charAt(index)] || 0;
+        var next = numerals[text.charAt(index + 1)] || 0;
+        total += current < next ? -current : current;
+    }
+    return total;
+}
+
+// Syncfusion (va Word khi luu DOCX) chi nhan anh PNG/JPEG/GIF/BMP: anh khac (webp, svg...) doi sang PNG.
+function normalizeWordKitPasteImage(image, source) {
+    if (/^data:image\/(png|jpe?g|gif|bmp)[;,]/i.test(source)) {
+        return source;
+    }
+    try {
+        var canvas = document.createElement("canvas");
+        canvas.width = image.naturalWidth || image.width;
+        canvas.height = image.naturalHeight || image.height;
+        if (!canvas.width || !canvas.height) {
+            return "";
+        }
+        canvas.getContext("2d").drawImage(image, 0, 0, canvas.width, canvas.height);
+        return canvas.toDataURL("image/png");
+    } catch (error) {
+        return "";
+    }
 }
 
 function showWordKitToast(message) {
@@ -5667,24 +6997,21 @@ function loadWordKitLocale() {
     });
 }
 
-// Dan giu dinh dang (SystemClipboard) tu trang HTTPS toi dich vu http:// bi trinh duyet chan (mixed
-// content) -> Ctrl+V khong dan duoc gi. Cac trang hop dong dat dich vu rieng dang http nen bi dung
-// truong hop nay; luc do di qua proxy cung ten mien cua Laravel (api/documenteditor/SystemClipboard).
-function syncfusionOfficeKitPasteServiceUrl(url) {
-    url = url || syncfusionOfficeKitDocumentServiceUrl;
-    if (window.location.protocol === "https:" && /^http:\/\//i.test(String(url))) {
-        return window.location.origin.replace(/\/+$/, "") + "/api/documenteditor/";
-    }
-    return url;
-}
+// Khai bao truoc khi tao container: container.documentEditor.open(...) ngay ben duoi da kich hoat
+// scheduleDocumentExportQr, luc do cac bien nay phai co gia tri (khong phai undefined do hoisting).
+var documentExportQrPayload = null;
+var documentExportQrPayloadPromise = null;
+var documentExportQrSuppressOpenSchedule = false;
+var documentExportQrRetryDelays = [0, 120, 350, 900, 1800, 3200, 5500, 8000, 12000];
 
 loadWordKitLocale();
 
+// Khong dat serviceUrl: dan giu dinh dang doi HTML -> SFDT ngay tren trinh duyet (patchWordKitPasteHandler),
+// khong goi dich vu .NET (SystemClipboard).
 var container = new ej.documenteditor.DocumentEditorContainer({
-    serviceUrl: syncfusionOfficeKitPasteServiceUrl(syncfusionOfficeKitDocumentServiceUrl),
     locale: window.ej && ej.base && ej.base.L10n ? "vi" : "en-US",
     enableToolbar: true,
-    // false: cho phep dan noi dung tu ben ngoai (Word/trinh duyet) qua serviceUrl, giu dinh dang.
+    // false: moi lan dan deu doc bo nho tam cua he thong (noi dung tu Word/trinh duyet/Excel hoac tu chinh bo soan).
     enableLocalPaste: false,
     enableFooter: true,
     enableHeaderAndFooter: true,
@@ -5736,9 +7063,12 @@ container.documentEditor.documentName = "vinbs";
 container.documentEditor.pageOutline = "FF000";
 
 var titleBarDiv = document.getElementById("documenteditor_titlebar");
-initializeTitleBar(true);
-updateDocumentTitle();
-wireEventsInTitleBar();
+// Trang nhung khong co thanh tieu de (chi co #container) van chay tiep phan con lai cua kit (PDF, QR, logo).
+if (titleBarDiv) {
+    initializeTitleBar(true);
+    updateDocumentTitle();
+    wireEventsInTitleBar();
+}
 
 container.documentChange = function () {
     updateDocumentTitle();
@@ -5817,13 +7147,11 @@ function updateDocumentTitle() {
     if (container.documentEditor.documentName === "") {
         container.documentEditor.documentName = "vinbs";
     }
-    documentTitle.textContent = container.documentEditor.documentName;
+    // Trang khong co #documenteditor_titlebar thi khong co o ten tai lieu.
+    if (typeof documentTitle !== "undefined" && documentTitle) {
+        documentTitle.textContent = container.documentEditor.documentName;
+    }
 }
-
-var documentExportQrPayload = null;
-var documentExportQrPayloadPromise = null;
-var documentExportQrSuppressOpenSchedule = false;
-var documentExportQrRetryDelays = [0, 120, 350, 900, 1800, 3200, 5500, 8000, 12000];
 
 window.configureDocumentExportQr = configureDocumentExportQr;
 window.ensureDocumentExportQr = ensureDocumentExportQr;
@@ -6990,11 +8318,12 @@ function printSyncfusionOfficeKitDocument(editorContainer, editor) {
     }
 
     // In bang chinh bo soan: Syncfusion ve tung trang dung nhu dang hien (moi trang mot anh, @page dung kho giay,
-    // khong le) -> ban in khop man hinh tung dong. Duong cu gui DOCX len dich vu .NET (DocToPDF) doi sang PDF; bo
-    // dan trang cua dich vu tinh chieu cao dong hoi khac nen cuoi trang hay lech mot dong.
-    // Trang nao can in qua PDF may chu: dat window.syncfusionOfficeKitPrintViaServer = true.
+    // khong le) -> ban in khop man hinh tung dong. Khong in duoc thi tao PDF ngay tren trinh duyet (anh tung trang)
+    // roi in bang print-js; khong con gui DOCX len may chu (DocToPDF).
+    // Trang nao muon in qua PDF ngay tu dau: dat window.syncfusionOfficeKitPrintViaPdf = true (ten cu
+    // window.syncfusionOfficeKitPrintViaServer van nhan).
     var printWindow = null;
-    if (window.syncfusionOfficeKitPrintViaServer !== true) {
+    if (window.syncfusionOfficeKitPrintViaPdf !== true && window.syncfusionOfficeKitPrintViaServer !== true) {
         // Mo cua so ngay luc bam (con trong cu chi nguoi dung) -> khong bi chan popup khi phai doi chen QR.
         try {
             printWindow = window.open("", "print", "height=452,width=1024,tabbar=no");
@@ -7028,12 +8357,12 @@ function printSyncfusionOfficeKitDocument(editorContainer, editor) {
                     }
                 }
             }
-            if (typeof editor.saveAsBlob === "function") {
-                return printSyncfusionOfficeKitViaServer(editor)
+            if (canCreateSyncfusionOfficeKitPdf(editor)) {
+                return printSyncfusionOfficeKitViaPdf(editor)
                     .catch(function (error) {
                         console.warn("Syncfusion Office kit PDF print fallback:", error);
                         if (!printSyncfusionOfficeKitDirect(editor, true)) {
-                            alert("Khong in duoc van ban. Vui long kiem tra dich vu chuyen PDF hoac thu lai sau.");
+                            alert("Không in được văn bản. Vui lòng tải lại trang hoặc thử lại sau.");
                         }
                     });
             }
@@ -7116,72 +8445,425 @@ function darkenWordKitPrintCanvas(canvas) {
     context.putImageData(image, 0, 0);
 }
 
-function printSyncfusionOfficeKitViaServer(editor) {
-    return new Promise(function (resolve, reject) {
-        if (!editor || typeof editor.saveAsBlob !== "function") {
-            reject(new Error("PDF print dependencies are not available."));
-            return;
+// ---------------------------------------------------------------------------
+// PDF tao ngay tren trinh duyet
+// ---------------------------------------------------------------------------
+// Moi trang van ban duoc Syncfusion ve lai (dung bo ve trang khi in) len canvas ~200 dpi, nen JPEG roi ghep bang
+// ej.pdfexport: kho trang PDF dung kho trang van ban (pt), le 0, ke ca trang ngang. Chu trong PDF la anh (khong
+// chon/tim duoc). Khong con gui DOCX len may chu (api/get-file -> DocToPDF).
+// JPEG 0.7: chu van ro o 200 dpi, nhe hon 0.8 khoang 15% (trang chu day khoang 350 KB).
+var syncfusionOfficeKitPdfOptions = {
+    dpi: 200,
+    jpegQuality: 0.7,
+};
+// Blob do saveAsBlob cua bo soan nao tao ra -> doi blob do sang PDF thi ve lai tu chinh bo soan do.
+var syncfusionOfficeKitBlobEditors = typeof WeakMap === "function" ? new WeakMap() : null;
+
+patchSyncfusionOfficeKitSaveAsBlob();
+
+function patchSyncfusionOfficeKitSaveAsBlob() {
+    var DocumentEditor = typeof ej !== "undefined" && ej.documenteditor ? ej.documenteditor.DocumentEditor : null;
+    var proto = DocumentEditor ? DocumentEditor.prototype : null;
+    if (!proto || !syncfusionOfficeKitBlobEditors || proto.officeKitBlobPatched || typeof proto.saveAsBlob !== "function") {
+        return;
+    }
+    var originalSaveAsBlob = proto.saveAsBlob;
+    proto.officeKitBlobPatched = true;
+    proto.saveAsBlob = function () {
+        var editor = this;
+        var result = originalSaveAsBlob.apply(this, arguments);
+        if (!result || typeof result.then !== "function") {
+            return result;
         }
+        return result.then(function (blob) {
+            if (blob && typeof blob === "object") {
+                syncfusionOfficeKitBlobEditors.set(blob, editor);
+            }
+            return blob;
+        });
+    };
+}
 
-        editor.saveAsBlob("Docx").then(function (myBlob) {
-            var formData = new FormData();
-            formData.append("file", myBlob);
-            var request = new XMLHttpRequest();
-            request.open("POST", hostUrl + "api/get-file", true);
-            request.onreadystatechange = function () {
-                if (request.readyState !== XMLHttpRequest.DONE) {
-                    return;
-                }
+function isSyncfusionOfficeKitEditor(value) {
+    return Boolean(value && typeof value === "object" && value.documentHelper && typeof value.serialize === "function");
+}
 
-                var pdfBase64 = getSyncfusionOfficeKitPdfBase64FromResponse(request.responseText);
-                if (request.status < 200 || request.status >= 300 || !pdfBase64) {
-                    reject(new Error("Khong chuyen doi duoc file sang PDF."));
-                    return;
-                }
+function getSyncfusionOfficeKitBlobEditor(blob) {
+    if (!blob || typeof blob !== "object" || !syncfusionOfficeKitBlobEditors) {
+        return null;
+    }
+    var editor = syncfusionOfficeKitBlobEditors.get(blob);
+    return editor && !editor.isDestroyed && editor.documentHelper ? editor : null;
+}
 
-                try {
-                    printSyncfusionOfficeKitPdfBase64(pdfBase64);
-                    resolve(true);
-                } catch (error) {
-                    reject(error);
-                }
-            };
-            request.onerror = function () {
-                reject(new Error("Khong ket noi duoc dich vu in PDF."));
-            };
-            request.send(formData);
-        }).catch(reject);
-    });
+function canCreateSyncfusionOfficeKitPdf(editor) {
+    return Boolean(typeof ej !== "undefined" && ej.pdfexport && ej.pdfexport.PdfDocument && ej.pdfexport.PdfBitmap
+        && editor && editor.documentHelper && editor.documentHelper.render
+        && typeof editor.documentHelper.render.renderWidgets === "function");
 }
 
 /**
- * Chuyen blob DOCX sang PDF (base64, khong kem tien to data:) qua proxy Laravel api/get-file.
- * Modal "Cong chung so — tao phien" (hopdongv2/cong_chung_so_modal.blade.php) goi ham nay.
+ * In qua PDF tao ngay tren trinh duyet (print-js). Net chu duoc lam dam nhu khi in truc tiep.
  */
-function syncfusionOfficeKitConvertDocxBlobToPdfBase64(docxBlob) {
-    return new Promise(function (resolve, reject) {
-        if (!docxBlob) {
-            reject(new Error("Không có dữ liệu DOCX để chuyển."));
-            return;
+function printSyncfusionOfficeKitViaPdf(editor) {
+    return createSyncfusionOfficeKitPdfBase64(editor, { ink: true }).then(function (pdfBase64) {
+        printSyncfusionOfficeKitPdfBase64(pdfBase64);
+        return true;
+    });
+}
+
+// Ten cu (truoc day gui DOCX len DocToPDF), giu cho trang nao con goi.
+function printSyncfusionOfficeKitViaServer(editor) {
+    return printSyncfusionOfficeKitViaPdf(editor);
+}
+
+/**
+ * Doi blob DOCX sang PDF (base64, khong kem tien to data:), tao ngay tren trinh duyet.
+ * Modal "Cong chung so — tao phien" (dotary hopdongv2/cong_chung_so_modal.blade.php) goi ham nay voi blob vua xuat tu
+ * container.documentEditor.saveAsBlob("Docx") -> PDF duoc ve lai tu chinh bo soan do (gom ca QR vua chen).
+ * Blob khong do bo soan nao tren trang tao ra: mo tam vao mot bo soan an (qua dich vu mo file) roi ve tu do.
+ * editor (tuy chon): bo soan can ve. options (tuy chon): { dpi, jpegQuality, onProgress(soTrangXong, tongSoTrang) }.
+ */
+function syncfusionOfficeKitConvertDocxBlobToPdfBase64(docxBlob, editor, options) {
+    if (!options && editor && typeof editor === "object" && !isSyncfusionOfficeKitEditor(editor)) {
+        options = editor;
+        editor = null;
+    }
+    var sourceEditor = isSyncfusionOfficeKitEditor(editor) ? editor : getSyncfusionOfficeKitBlobEditor(docxBlob);
+    if (sourceEditor) {
+        return createSyncfusionOfficeKitPdfBase64(sourceEditor, options);
+    }
+    if (!docxBlob) {
+        return Promise.reject(new Error("Không có dữ liệu DOCX để chuyển."));
+    }
+
+    return withSyncfusionOfficeKitHiddenEditor(docxBlob, function (hiddenEditor) {
+        return createSyncfusionOfficeKitPdfBase64(hiddenEditor, options);
+    });
+}
+
+function createSyncfusionOfficeKitPdfBase64(editor, options) {
+    return createSyncfusionOfficeKitPdfBlob(editor, options).then(readSyncfusionOfficeKitBlobBase64);
+}
+
+/**
+ * Tao PDF (Blob) tu bo soan: ve tuan tu tung trang, nhuong luong giua cac trang de trang web khong bi treo
+ * voi van ban dai. Tu 5 trang tro len hien tien trinh (hoac goi options.onProgress).
+ */
+function createSyncfusionOfficeKitPdfBlob(editor, options) {
+    options = options || {};
+    if (!canCreateSyncfusionOfficeKitPdf(editor)) {
+        return Promise.reject(new Error("Trình duyệt chưa sẵn sàng để tạo PDF."));
+    }
+
+    var pdf = ej.pdfexport;
+    var helper = editor.documentHelper;
+    var pages = (helper.pages || []).slice();
+    if (!pages.length) {
+        return Promise.reject(new Error("Văn bản không có trang nào để tạo PDF."));
+    }
+
+    var dpi = Math.max(72, Math.min(600, Number(options.dpi) || syncfusionOfficeKitPdfOptions.dpi));
+    var quality = Math.max(0.3, Math.min(1, Number(options.jpegQuality) || syncfusionOfficeKitPdfOptions.jpegQuality));
+    var onProgress = typeof options.onProgress === "function"
+        ? options.onProgress
+        : (pages.length >= 5 && options.silent !== true ? showSyncfusionOfficeKitPdfProgress : null);
+    var settings = editor.documentEditorSettings;
+    var previousRatio = settings ? settings.printDevicePixelRatio : null;
+    var pdfDocument = new pdf.PdfDocument();
+    var current = { section: null, width: 0, height: 0 };
+    var index = 0;
+
+    // Bo ve trang khi in dung ti le max(devicePixelRatio, printDevicePixelRatio): dat tam ti le cho ~dpi.
+    if (settings) {
+        settings.printDevicePixelRatio = dpi / 96;
+    }
+    var restore = function () {
+        if (settings && settings.printDevicePixelRatio !== previousRatio) {
+            settings.printDevicePixelRatio = previousRatio;
         }
+        releaseSyncfusionOfficeKitPageCanvas(helper.render);
+    };
 
-        var formData = new FormData();
-        formData.append("file", docxBlob, "hop-dong.docx");
-
-        var request = new XMLHttpRequest();
-        request.open("POST", hostUrl + "api/get-file", true);
-        request.onload = function () {
-            var pdfBase64 = getSyncfusionOfficeKitPdfBase64FromResponse(request.responseText);
-            if (request.status < 200 || request.status >= 300 || !pdfBase64) {
-                reject(new Error("Dịch vụ không trả về PDF (HTTP " + request.status + ")."));
+    return new Promise(function (resolve, reject) {
+        var fail = function (error) {
+            restore();
+            try {
+                pdfDocument.destroy();
+            } catch (destroyError) {
+                // Da huy.
+            }
+            reject(error);
+        };
+        var next = function () {
+            if (index >= pages.length) {
+                restore();
+                Promise.resolve(pdfDocument.save()).then(function (result) {
+                    try {
+                        pdfDocument.destroy();
+                    } catch (destroyError) {
+                        // Da huy.
+                    }
+                    if (!result || !result.blobData) {
+                        reject(new Error("Không tạo được PDF."));
+                        return;
+                    }
+                    resolve(result.blobData);
+                }, fail);
                 return;
             }
-            resolve(pdfBase64);
+
+            renderSyncfusionOfficeKitPageJpeg(editor, pages[index], quality, options.ink === true).then(function (image) {
+                addSyncfusionOfficeKitPdfPage(pdf, pdfDocument, current, image);
+                index += 1;
+                if (onProgress) {
+                    try {
+                        onProgress(index, pages.length);
+                    } catch (progressError) {
+                        console.warn("Office kit PDF progress:", progressError);
+                    }
+                }
+                setTimeout(next, 0);
+            }).catch(fail);
         };
-        request.onerror = function () {
-            reject(new Error("Không kết nối được dịch vụ chuyển PDF."));
+        next();
+    });
+}
+
+function renderSyncfusionOfficeKitPageJpeg(editor, page, quality, ink) {
+    var render = editor.documentHelper.render;
+    var canvas = null;
+    try {
+        render.isPrinting = true;
+        render.renderWidgets(page, 0, 0, 0, 0);
+        canvas = render.pageCanvas;
+        if (ink) {
+            darkenWordKitPrintCanvas(canvas);
+        }
+    } catch (error) {
+        return Promise.reject(error);
+    } finally {
+        render.isPrinting = false;
+    }
+
+    var bounds = page.boundingRectangle;
+    var width = Math.round(bounds.width * 0.75 * 100) / 100;
+    var height = Math.round(bounds.height * 0.75 * 100) / 100;
+    return syncfusionOfficeKitCanvasToJpegBase64(canvas, quality).then(function (base64) {
+        return { base64: base64, width: width, height: height, pixelWidth: canvas.width, pixelHeight: canvas.height };
+    });
+}
+
+// Canvas -> JPEG base64. toBlob nen anh ngoai luong chinh (khong khung trang); trinh duyet khong co thi dung toDataURL.
+function syncfusionOfficeKitCanvasToJpegBase64(canvas, quality) {
+    return new Promise(function (resolve, reject) {
+        var fromDataUrl = function () {
+            try {
+                resolve(String(canvas.toDataURL("image/jpeg", quality)).split(",")[1] || "");
+            } catch (error) {
+                reject(error);
+            }
         };
-        request.send(formData);
+        if (typeof canvas.toBlob !== "function" || typeof FileReader !== "function") {
+            fromDataUrl();
+            return;
+        }
+        canvas.toBlob(function (blob) {
+            if (!blob) {
+                fromDataUrl();
+                return;
+            }
+            readSyncfusionOfficeKitBlobBase64(blob).then(resolve, reject);
+        }, "image/jpeg", quality);
+    });
+}
+
+// Moi trang mot anh phu kin trang; trang lien nhau cung kho giay dung chung mot section cua PDF.
+function addSyncfusionOfficeKitPdfPage(pdf, pdfDocument, current, image) {
+    if (!current.section || Math.abs(current.width - image.width) > 0.5 || Math.abs(current.height - image.height) > 0.5) {
+        var section = pdfDocument.sections.add();
+        var pageSettings = new pdf.PdfPageSettings(0);
+        // Dat huong truoc kho giay: PdfPageSettings tu doi chieu rong/cao theo huong.
+        pageSettings.orientation = image.width > image.height ? pdf.PdfPageOrientation.Landscape : pdf.PdfPageOrientation.Portrait;
+        pageSettings.size = new pdf.SizeF(image.width, image.height);
+        section.setPageSettings(pageSettings);
+        current.section = section;
+        current.width = image.width;
+        current.height = image.height;
+    }
+    var page = current.section.pages.add();
+    page.graphics.drawImage(new pdf.PdfBitmap(image.base64), 0, 0, image.width, image.height);
+}
+
+// Canvas ve trang khi in rat lon (vai chuc trieu diem): thu nho lai sau khi dung de tra bo nho.
+function releaseSyncfusionOfficeKitPageCanvas(render) {
+    if (!render) {
+        return;
+    }
+    try {
+        render.isPrinting = true;
+        var canvas = render.pageCanvas;
+        if (canvas && canvas.width * canvas.height > 4000000) {
+            canvas.width = 1;
+            canvas.height = 1;
+        }
+    } catch (error) {
+        // Chi la giai phong bo nho.
+    } finally {
+        render.isPrinting = false;
+    }
+}
+
+function showSyncfusionOfficeKitPdfProgress(done, total) {
+    if (typeof showWordKitToast === "function") {
+        showWordKitToast(done < total ? "Đang tạo PDF: " + done + "/" + total + " trang…" : "Đã tạo PDF " + total + " trang.");
+    }
+}
+
+function readSyncfusionOfficeKitBlobBase64(blob) {
+    return new Promise(function (resolve, reject) {
+        var reader = new FileReader();
+        reader.onload = function () {
+            var result = String(reader.result || "");
+            resolve(result.slice(result.indexOf(",") + 1));
+        };
+        reader.onerror = function () {
+            reject(reader.error || new Error("Không đọc được dữ liệu."));
+        };
+        reader.readAsDataURL(blob);
+    });
+}
+
+function readSyncfusionOfficeKitBlobText(blob) {
+    return new Promise(function (resolve, reject) {
+        var reader = new FileReader();
+        reader.onload = function () {
+            resolve(String(reader.result || ""));
+        };
+        reader.onerror = function () {
+            reject(reader.error || new Error("Không đọc được dữ liệu."));
+        };
+        reader.readAsText(blob);
+    });
+}
+
+// Blob la SFDT thi mo thang; DOCX/RTF/DOC thi doi sang SFDT qua dich vu mo file (cung duong voi "Mo file").
+function readSyncfusionOfficeKitBlobAsSfdt(blob) {
+    return readSyncfusionOfficeKitBlobText(blob.slice(0, 16)).then(function (head) {
+        var isRtf = /^\s*\{\\rtf/.test(head);
+        if (!isRtf && /^\s*\{/.test(head)) {
+            return readSyncfusionOfficeKitBlobText(blob);
+        }
+
+        var fileName = String(blob.name || "") || (isRtf ? "van-ban.rtf" : "van-ban.docx");
+        return new Promise(function (resolve, reject) {
+            var formData = new FormData();
+            formData.append("files", blob, fileName);
+            formData.append("document_editor_service_url", syncfusionOfficeKitDocumentServiceUrl);
+            var request = new XMLHttpRequest();
+            request.open("POST", window.syncfusionOfficeKitImportUrl || (window.location.origin + "/api/documenteditor/import-vinbs"), true);
+            request.onload = function () {
+                if (request.status >= 200 && request.status < 300 && isSyncfusionOfficeKitSfdtText(request.responseText)) {
+                    resolve(request.responseText);
+                    return;
+                }
+                reject(new Error("Không mở được tệp để tạo PDF (HTTP " + request.status + ")."));
+            };
+            request.onerror = function () {
+                reject(new Error("Không kết nối được dịch vụ mở tệp."));
+            };
+            request.send(formData);
+        });
+    });
+}
+
+// Anh trong SFDT nap san vao bo nho dem cua trinh duyet -> bo soan an ve duoc anh ngay, khong bi thieu anh.
+function preloadSyncfusionOfficeKitImages(sfdtText) {
+    var sources = [];
+    var pattern = /"(data:image\/[a-z+.\-]+;base64,[A-Za-z0-9+\/=\\]+)"/gi;
+    var match;
+    while ((match = pattern.exec(sfdtText)) !== null && sources.length < 200) {
+        sources.push(match[1].replace(/\\\//g, "/"));
+    }
+    var images = sources.map(function (source) {
+        var image = new Image();
+        image.src = source;
+        return image;
+    });
+    var pending = images.filter(function (image) {
+        return !image.complete;
+    });
+    if (!pending.length) {
+        return Promise.resolve(images);
+    }
+    return new Promise(function (resolve) {
+        var left = pending.length;
+        var timer = setTimeout(function () {
+            resolve(images);
+        }, 3000);
+        var done = function () {
+            left -= 1;
+            if (left <= 0) {
+                clearTimeout(timer);
+                resolve(images);
+            }
+        };
+        pending.forEach(function (image) {
+            image.addEventListener("load", done);
+            image.addEventListener("error", done);
+        });
+    });
+}
+
+function withSyncfusionOfficeKitHiddenEditor(blob, work) {
+    return readSyncfusionOfficeKitBlobAsSfdt(blob).then(function (sfdtText) {
+        return preloadSyncfusionOfficeKitImages(sfdtText).then(function (images) {
+            var host = document.createElement("div");
+            host.setAttribute("aria-hidden", "true");
+            host.style.cssText = "position:fixed;left:-30000px;top:0;width:1000px;height:800px;overflow:hidden;pointer-events:none;";
+            document.body.appendChild(host);
+            var hiddenEditor = null;
+            var cleanup = function () {
+                try {
+                    if (hiddenEditor) {
+                        hiddenEditor.destroy();
+                    }
+                } catch (error) {
+                    console.warn("Office kit hidden editor destroy:", error);
+                }
+                if (host.parentNode) {
+                    host.parentNode.removeChild(host);
+                }
+                images.length = 0;
+            };
+
+            try {
+                hiddenEditor = new ej.documenteditor.DocumentEditor({
+                    isReadOnly: true,
+                    enablePrint: true,
+                    enableSfdtExport: true,
+                    width: "1000px",
+                    height: "800px",
+                });
+                hiddenEditor.appendTo(host);
+                hiddenEditor.open(sfdtText);
+            } catch (error) {
+                cleanup();
+                return Promise.reject(error);
+            }
+
+            return new Promise(function (resolve) {
+                setTimeout(resolve, 50);
+            }).then(function () {
+                return work(hiddenEditor);
+            }).then(function (result) {
+                cleanup();
+                return result;
+            }, function (error) {
+                cleanup();
+                throw error;
+            });
+        });
     });
 }
 
