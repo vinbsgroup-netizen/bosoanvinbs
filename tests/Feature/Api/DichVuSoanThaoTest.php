@@ -53,6 +53,36 @@ class DichVuSoanThaoTest extends TestCase
         Http::assertSent(fn (YeuCauDichVu $yeuCau) => $yeuCau->url() === self::DICH_VU.'Import');
     }
 
+    public function test_vietnamese_written_into_an_rtf_template_reaches_the_service_as_rtf_unicode(): void
+    {
+        Http::fake([self::DICH_VU.'Import' => Http::response(self::SFDT)]);
+        $rtf = '{\rtf1\ansi\f0 Bên A: Nguyễn Văn 𝐀\par}';
+
+        $this->post('/api/documenteditor/import-vinbs', ['files' => UploadedFile::fake()->createWithContent('hop-dong.rtf', $rtf)])
+            ->assertOk();
+
+        // "|" thay cho dấu "\" của RTF; ký tự 4 byte (𝐀) thành cặp surrogate.
+        $rtfDaMaHoa = str_replace('|', '\\', '{|rtf1|ansi|f0 B|u234?n A: Nguy|u7877?n V|u259?n |u-10187?|u-9216?|par}');
+
+        Http::assertSent(fn (YeuCauDichVu $yeuCau) => $this->tepDaGui($yeuCau) === $rtfDaMaHoa);
+    }
+
+    public function test_an_ansi_rtf_is_forwarded_unchanged(): void
+    {
+        Http::fake([self::DICH_VU.'Import' => Http::response(self::SFDT)]);
+        $rtfAnsi = "{\\rtf1\\ansi\\ansicpg1252 Caf\xE9\\par}";
+
+        $this->post('/api/documenteditor/import-vinbs', ['files' => UploadedFile::fake()->createWithContent('cu.rtf', $rtfAnsi)])
+            ->assertOk();
+
+        Http::assertSent(fn (YeuCauDichVu $yeuCau) => $this->tepDaGui($yeuCau) === $rtfAnsi);
+    }
+
+    private function tepDaGui(YeuCauDichVu $yeuCau): ?string
+    {
+        return collect($yeuCau->data())->firstWhere('name', 'files')['contents'] ?? null;
+    }
+
     public function test_a_file_that_is_not_word_rtf_or_text_is_rejected(): void
     {
         $this->post('/api/documenteditor/Import', ['files' => UploadedFile::fake()->create('anh.png', 10)])

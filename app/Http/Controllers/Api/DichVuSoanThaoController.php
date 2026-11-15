@@ -44,10 +44,38 @@ class DichVuSoanThaoController extends Controller
             return response('Chỉ mở được file Word (.doc, .docx), RTF hoặc văn bản (.txt).', 422);
         }
 
+        $noiDung = $tep->get();
+
+        if (str_starts_with(ltrim($noiDung), '{\rtf')) {
+            $noiDung = $this->maHoaRtfUnicode($noiDung);
+        }
+
         return $this->goiDichVu('Import', fn () => Http::connectTimeout(5)
             ->timeout(120)
-            ->attach('files', $tep->get(), $tep->getClientOriginalName() ?: 'van-ban.docx')
+            ->attach('files', $noiDung, $tep->getClientOriginalName() ?: 'van-ban.docx')
             ->post(config('bo_soan.dich_vu_syncfusion').'Import'));
+    }
+
+    /**
+     * Phần mềm khách ghép chữ vào mẫu RTF (str_replace) nên RTF có thể chứa thẳng byte UTF-8, trong khi dịch vụ Import
+     * đọc RTF theo bảng mã ANSI: "Nguyễn" thành "Nguyá»…n". Đổi mọi ký tự ngoài ASCII sang mã \uN? của RTF.
+     * RTF ANSI thật (byte cao không phải UTF-8 hợp lệ) giữ nguyên.
+     */
+    private function maHoaRtfUnicode(string $rtf): string
+    {
+        if (! preg_match('/[^\x00-\x7F]/', $rtf) || ! mb_check_encoding($rtf, 'UTF-8')) {
+            return $rtf;
+        }
+
+        return preg_replace_callback('/[^\x00-\x7F]/u', function (array $kyTu): string {
+            $ma = mb_ord($kyTu[0], 'UTF-8');
+            // \u của RTF là số 16 bit có dấu; ký tự ngoài BMP ghi thành cặp surrogate.
+            $donVi = $ma > 0xFFFF
+                ? [0xD800 + (($ma - 0x10000) >> 10), 0xDC00 + (($ma - 0x10000) & 0x3FF)]
+                : [$ma];
+
+            return implode('', array_map(fn (int $u): string => '\\u'.($u > 32767 ? $u - 65536 : $u).'?', $donVi));
+        }, $rtf);
     }
 
     /**
