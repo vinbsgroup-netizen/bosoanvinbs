@@ -29,7 +29,7 @@ class DichVuSoanThaoController extends Controller
     public const HANH_DONG_JSON = ['SystemClipboard', 'RestrictEditing', 'SpellCheck', 'SpellCheckByPage'];
 
     /**
-     * Mở file Word (.doc, .docx) hoặc RTF: dịch vụ Import đổi sang SFDT để bộ soạn mở.
+     * Mở file Word (.doc, .docx), RTF hoặc văn bản thuần (.txt, UTF-8): dịch vụ Import đổi sang SFDT để bộ soạn mở.
      * File chỉ được chuyển tiếp, không lưu lại trên máy chủ.
      */
     public function nhapFile(Request $request): Response
@@ -37,11 +37,11 @@ class DichVuSoanThaoController extends Controller
         $tep = $request->file('files') ?? $request->file('file');
 
         $kiemTra = Validator::make(['tep' => $tep], [
-            'tep' => ['required', 'file', 'extensions:doc,docx,rtf', 'max:'.config('bo_soan.kich_thuoc_file_toi_da')],
+            'tep' => ['required', 'file', 'extensions:doc,docx,rtf,txt', 'max:'.config('bo_soan.kich_thuoc_file_toi_da')],
         ]);
 
         if ($kiemTra->fails()) {
-            return response('Chỉ mở được file Word (.doc, .docx) hoặc RTF.', 422);
+            return response('Chỉ mở được file Word (.doc, .docx), RTF hoặc văn bản (.txt).', 422);
         }
 
         return $this->goiDichVu('Import', fn () => Http::connectTimeout(5)

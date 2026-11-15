@@ -53,6 +53,13 @@
             var phien = @json($phien);
             var editor = container.documentEditor;
 
+            // Office kit đặt pageOutline = "FF000" (mã màu sai nên canvas vẽ viền đen quanh trang). Bỏ khung trang.
+            editor.pageOutline = 'transparent';
+
+            // "Mở file Word" của Office kit chỉ lọc .doc, .docx, .sfdt; bo-soan mở được cả RTF và văn bản thuần (.txt).
+            getSyncfusionOfficeKitImportInput().accept = '.doc,.docx,.rtf,.txt,.sfdt,application/msword,'
+                + 'application/vnd.openxmlformats-officedocument.wordprocessingml.document,application/rtf,text/rtf,text/plain,application/json';
+
             // Bộ soạn chiếm hết phần còn lại của cửa sổ, bên dưới thanh tiêu đề và ribbon.
             function datChieuCao() {
                 var top = document.getElementById('container').getBoundingClientRect().top;
@@ -62,6 +69,8 @@
             [0, 300, 1000].forEach(function (delay) { setTimeout(datChieuCao, delay); });
 
             if (!phien) {
+                // Office kit mở sẵn văn bản mẫu ("Van ban mau."); không có phiên thì mở trang trắng như lệnh "Mới".
+                editor.open(JSON.stringify(syncfusionOfficeKitDocument([syncfusionOfficeKitParagraph('')])));
                 return;
             }
 

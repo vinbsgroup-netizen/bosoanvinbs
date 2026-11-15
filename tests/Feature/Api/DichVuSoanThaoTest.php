@@ -42,11 +42,22 @@ class DichVuSoanThaoTest extends TestCase
         Http::assertSentCount(1);
     }
 
-    public function test_a_file_that_is_not_word_or_rtf_is_rejected(): void
+    public function test_a_plain_text_file_is_forwarded_to_the_import_service(): void
+    {
+        Http::fake([self::DICH_VU.'Import' => Http::response(self::SFDT)]);
+
+        $this->post('/api/documenteditor/import-vinbs', ['files' => UploadedFile::fake()->createWithContent('ghi-chu.txt', 'Xin chào')])
+            ->assertOk()
+            ->assertContent(self::SFDT);
+
+        Http::assertSent(fn (YeuCauDichVu $yeuCau) => $yeuCau->url() === self::DICH_VU.'Import');
+    }
+
+    public function test_a_file_that_is_not_word_rtf_or_text_is_rejected(): void
     {
         $this->post('/api/documenteditor/Import', ['files' => UploadedFile::fake()->create('anh.png', 10)])
             ->assertUnprocessable()
-            ->assertContent('Chỉ mở được file Word (.doc, .docx) hoặc RTF.');
+            ->assertContent('Chỉ mở được file Word (.doc, .docx), RTF hoặc văn bản (.txt).');
 
         Http::assertNothingSent();
     }
