@@ -3,10 +3,12 @@
 namespace App\Http\Controllers;
 
 use App\Http\Controllers\Api\PhienSoanController as ApiPhienSoan;
+use App\Rules\NoiDungVanBan;
+use Illuminate\Contracts\View\View;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Cache;
-use Illuminate\Contracts\View\View;
+use Illuminate\Support\Facades\Date;
 
 class SoanController extends Controller
 {
@@ -17,10 +19,11 @@ class SoanController extends Controller
     {
         $phien = $this->timPhien($ma);
 
-        return view('editor', [
+        return view('office-kit', [
             'phien' => [
                 'ma' => $ma,
                 'tieu_de' => $phien['tieu_de'],
+                'dinh_dang' => NoiDungVanBan::dinhDang($phien['noi_dung']),
                 'noi_dung' => $phien['noi_dung'],
                 'ket_qua_url' => route('phien-soan.ket-qua', ['ma' => $ma]),
             ],
@@ -35,13 +38,14 @@ class SoanController extends Controller
         $phien = $this->timPhien($ma);
 
         $validated = $request->validate([
-            'noi_dung' => ['required', 'array'],
-            'noi_dung.type' => ['required', 'in:doc'],
-            'noi_dung.content' => ['present', 'array'],
-            'noi_dung.hf' => ['nullable', 'array'],
+            'noi_dung' => ['required', new NoiDungVanBan(chiNhanSfdt: true)],
         ]);
 
-        Cache::put(ApiPhienSoan::khoaCache($ma), [...$phien, 'noi_dung' => $validated['noi_dung']], $phien['het_han']);
+        Cache::put(
+            ApiPhienSoan::khoaCache($ma),
+            [...$phien, 'noi_dung' => NoiDungVanBan::chuanHoa($validated['noi_dung'])],
+            Date::createFromTimestamp($phien['het_han']),
+        );
 
         return response()->json(['message' => 'Đã nhận kết quả.']);
     }

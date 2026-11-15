@@ -9,9 +9,9 @@ class PhienSoanApiTest extends TestCase
 {
     use RefreshDatabase;
 
-    private function noiDung(): array
+    private function noiDung(): string
     {
-        return ['type' => 'doc', 'content' => [['type' => 'paragraph', 'content' => [['type' => 'text', 'text' => 'Xin chào']]]]];
+        return '{"sections":[{"blocks":[{"inlines":[{"text":"Xin chào"}]}]}]}';
     }
 
     public function test_request_without_a_valid_license_is_rejected(): void
@@ -35,7 +35,19 @@ class PhienSoanApiTest extends TestCase
 
         $this->getJson("/api/v1/phien-soan/{$ma}", $headers)
             ->assertOk()
-            ->assertJsonPath('noi_dung.type', 'doc');
+            ->assertJsonPath('dinh_dang', 'sfdt')
+            ->assertJsonPath('noi_dung', $this->noiDung());
+    }
+
+    public function test_a_session_can_be_created_from_legacy_rtf_content(): void
+    {
+        $headers = $this->banQuyenHeaders('Khách A');
+        $rtf = '{\rtf1\ansi Hợp đồng cũ}';
+        $ma = $this->postJson('/api/v1/phien-soan', ['noi_dung' => $rtf], $headers)->assertCreated()->json('ma_phien');
+
+        $this->getJson("/api/v1/phien-soan/{$ma}", $headers)
+            ->assertJsonPath('dinh_dang', 'rtf')
+            ->assertJsonPath('noi_dung', $rtf);
     }
 
     public function test_another_customer_cannot_read_or_delete_the_session(): void
@@ -55,10 +67,10 @@ class PhienSoanApiTest extends TestCase
         $this->getJson("/api/v1/phien-soan/{$ma}", $headers)->assertNotFound();
     }
 
-    public function test_content_without_a_doc_type_is_rejected(): void
+    public function test_content_that_is_neither_sfdt_nor_rtf_is_rejected(): void
     {
         $this->postJson('/api/v1/phien-soan', ['noi_dung' => ['type' => 'html']], $this->banQuyenHeaders('Khách A'))
             ->assertUnprocessable()
-            ->assertJsonValidationErrors(['noi_dung.type']);
+            ->assertJsonValidationErrors(['noi_dung' => 'Nội dung phải là SFDT của bộ soạn hoặc RTF.']);
     }
 }

@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
+use App\Rules\NoiDungVanBan;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Cache;
@@ -11,16 +12,13 @@ use Illuminate\Support\Str;
 class PhienSoanController extends Controller
 {
     /**
-     * Tạo phiên soạn từ nội dung JSON của TipTap. Trả về liên kết mở bộ soạn.
+     * Tạo phiên soạn từ nội dung SFDT (JSON của bộ soạn) hoặc RTF. Trả về liên kết mở bộ soạn.
      */
     public function store(Request $request): JsonResponse
     {
         $validated = $request->validate([
             'tieu_de' => ['nullable', 'string', 'max:255'],
-            'noi_dung' => ['required', 'array'],
-            'noi_dung.type' => ['required', 'in:doc'],
-            'noi_dung.content' => ['present', 'array'],
-            'noi_dung.hf' => ['nullable', 'array'],
+            'noi_dung' => ['required', new NoiDungVanBan],
         ]);
 
         $ma = Str::random(40);
@@ -28,8 +26,9 @@ class PhienSoanController extends Controller
         Cache::put($this->khoaCache($ma), [
             'khach' => $request->attributes->get('khach'),
             'tieu_de' => $validated['tieu_de'] ?? 'Văn bản chưa đặt tên',
-            'noi_dung' => $validated['noi_dung'],
-            'het_han' => $thoiGian,
+            'noi_dung' => NoiDungVanBan::chuanHoa($validated['noi_dung']),
+            // Lưu timestamp thay vì đối tượng Carbon: cache không giải tuần tự đối tượng (serializable_classes = false).
+            'het_han' => $thoiGian->getTimestamp(),
         ], $thoiGian);
 
         return response()->json([
@@ -49,6 +48,7 @@ class PhienSoanController extends Controller
         return response()->json([
             'ma_phien' => $ma,
             'tieu_de' => $phien['tieu_de'],
+            'dinh_dang' => NoiDungVanBan::dinhDang($phien['noi_dung']),
             'noi_dung' => $phien['noi_dung'],
         ]);
     }

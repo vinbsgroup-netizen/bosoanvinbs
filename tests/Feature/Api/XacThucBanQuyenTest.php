@@ -22,6 +22,29 @@ class XacThucBanQuyenTest extends TestCase
             ->assertUnauthorized();
     }
 
+    public function test_a_license_for_another_product_declared_in_the_config_is_accepted(): void
+    {
+        $headers = $this->banQuyenHeaders('Văn phòng D', ['aud' => 'dotary']);
+        config(['license.san_pham_khac' => ['dotary' => config('license.public_key')]]);
+
+        $this->getJson('/api/v1/cau-hinh', $headers)
+            ->assertOk()
+            ->assertJsonPath('ma_giay_phep', 'Văn phòng D');
+    }
+
+    public function test_a_declared_product_only_accepts_tokens_signed_with_its_own_key(): void
+    {
+        $headers = $this->banQuyenHeaders('Văn phòng D', ['aud' => 'dotary']);
+        $cauHinh = ['private_key_bits' => 2048, 'private_key_type' => OPENSSL_KEYTYPE_RSA];
+        if ($duongDanCauHinh = env('OPENSSL_CONF_PATH')) {
+            $cauHinh['config'] = $duongDanCauHinh;
+        }
+        $khoaKhac = openssl_pkey_get_details(openssl_pkey_new($cauHinh))['key'];
+        config(['license.san_pham_khac' => ['dotary' => $khoaKhac]]);
+
+        $this->getJson('/api/v1/cau-hinh', $headers)->assertUnauthorized();
+    }
+
     public function test_a_license_from_another_issuer_is_rejected(): void
     {
         $this->getJson('/api/v1/cau-hinh', $this->banQuyenHeaders('Văn phòng A', ['iss' => 'gia-mao.example.com']))

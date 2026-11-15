@@ -58,21 +58,47 @@ class XacThucBanQuyen
             return null;
         }
 
-        $khoaCongKhai = openssl_pkey_get_public(str_replace('\\n', "\n", (string) config('license.public_key')));
-
-        if ($khoaCongKhai === false) {
-            return null;
-        }
-
+        // "aud" chỉ dùng để chọn khóa; chữ ký được xác minh bằng khóa của đúng sản phẩm đó trước khi tin claims.
+        $claims = $this->giaiMaJson($phanNoiDung);
         $chuKy = $this->giaiMaBase64Url($phanChuKy);
 
-        if (openssl_verify($phanDau.'.'.$phanNoiDung, $chuKy, $khoaCongKhai, OPENSSL_ALGO_SHA256) !== 1) {
-            return null;
+        foreach ($this->khoaTheoSanPham() as $sanPham => $khoaPem) {
+            if (! $this->dungSanPham($claims, $sanPham)) {
+                continue;
+            }
+
+            $khoaCongKhai = openssl_pkey_get_public(str_replace('\\n', "\n", (string) $khoaPem));
+
+            if ($khoaCongKhai !== false
+                && openssl_verify($phanDau.'.'.$phanNoiDung, $chuKy, $khoaCongKhai, OPENSSL_ALGO_SHA256) === 1) {
+                return $this->claimsConHieuLuc($claims) ? $claims : null;
+            }
         }
 
-        $claims = $this->giaiMaJson($phanNoiDung);
+        return null;
+    }
 
-        return $this->claimsConHieuLuc($claims) ? $claims : null;
+    /**
+     * Public key của từng sản phẩm được dùng bộ soạn: sản phẩm chính và các sản phẩm khai báo thêm.
+     *
+     * @return array<string, string|null>
+     */
+    private function khoaTheoSanPham(): array
+    {
+        return [
+            (string) config('license.product') => config('license.public_key'),
+            ...(array) config('license.san_pham_khac', []),
+        ];
+    }
+
+    /**
+     * @param  array<string, mixed>  $claims
+     */
+    private function dungSanPham(array $claims, string $sanPham): bool
+    {
+        $aud = $claims['aud'] ?? null;
+
+        return is_array($aud) ? in_array($sanPham, $aud, true) : $aud === $sanPham;
     }
 
     /**
@@ -80,11 +106,7 @@ class XacThucBanQuyen
      */
     private function claimsConHieuLuc(array $claims): bool
     {
-        $sanPham = config('license.product');
-        $aud = $claims['aud'] ?? null;
-        $dungSanPham = is_array($aud) ? in_array($sanPham, $aud, true) : $aud === $sanPham;
-
-        if (! $dungSanPham || ($claims['iss'] ?? null) !== config('license.issuer')) {
+        if (($claims['iss'] ?? null) !== config('license.issuer')) {
             return false;
         }
 
