@@ -232,6 +232,28 @@ class DichVuSoanThaoController extends Controller
     }
 
     /**
+     * Đổi DOCX bộ soạn vừa tạo sang RTF, cho phần mềm khách còn lưu RTF như thời TX (điều khoản V3 của dotary:
+     * máy chủ nối RTF các điều khoản và điền ^mã tiểu mục^ ngay trong RTF).
+     */
+    public function xuatRtf(Request $request): Response
+    {
+        $tep = $request->file('files') ?? $request->file('file');
+
+        if (! $tep instanceof UploadedFile || ! $tep->isValid() || ! $this->laFileDocx($tep)) {
+            return response('Cần gửi file DOCX.', 422);
+        }
+
+        if ($tep->getSize() > config('bo_soan.kich_thuoc_file_toi_da') * 1024) {
+            return response('File quá lớn.', 422);
+        }
+
+        return $this->goiDichVu('Export', fn () => Http::connectTimeout(5)
+            ->timeout(120)
+            ->attach('files', $tep->get(), 'van-ban.docx')
+            ->post(config('bo_soan.dich_vu_syncfusion').'Export', ['filename' => 'van-ban.rtf']));
+    }
+
+    /**
      * Chuyển tiếp nguyên thân yêu cầu JSON (dán giữ định dạng, bảo vệ tài liệu, kiểm tra chính tả).
      */
     public function chuyenTiep(Request $request, string $hanhDong): Response

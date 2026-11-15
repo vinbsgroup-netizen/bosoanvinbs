@@ -171,6 +171,27 @@ class DichVuSoanThaoTest extends TestCase
         Http::assertNothingSent();
     }
 
+    public function test_a_docx_is_exported_to_rtf_by_the_service(): void
+    {
+        Http::fake([self::DICH_VU.'Export' => Http::response('{\rtf1 ^12^\par}', 200, ['Content-Type' => 'application/rtf'])]);
+
+        $this->post('/api/documenteditor/Export', ['files' => $this->fileDocx(), 'filename' => 'khac.html'])
+            ->assertOk()
+            ->assertContent('{\rtf1 ^12^\par}');
+
+        Http::assertSent(fn (YeuCauDichVu $yeuCau) => $yeuCau->url() === self::DICH_VU.'Export'
+            && collect($yeuCau->data())->firstWhere('name', 'filename')['contents'] === 'van-ban.rtf');
+    }
+
+    public function test_rtf_export_rejects_a_file_that_is_not_docx(): void
+    {
+        $this->post('/api/documenteditor/Export', ['files' => UploadedFile::fake()->createWithContent('a.docx', 'khong phai docx')])
+            ->assertUnprocessable()
+            ->assertContent('Cần gửi file DOCX.');
+
+        Http::assertNothingSent();
+    }
+
     public function test_a_docx_is_converted_to_pdf_base64_without_quotes(): void
     {
         Http::fake([self::DOC_TO_PDF => Http::response('"JVBERi0xLjQ="')]);
