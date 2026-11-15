@@ -49,7 +49,7 @@
             // Bộ soạn chiếm hết phần còn lại của cửa sổ, bên dưới thanh tiêu đề và ribbon.
             function datChieuCao() {
                 var top = document.getElementById('container').getBoundingClientRect().top;
-                container.height = Math.max(window.innerHeight - top, 300) + 'px';
+                boSoanVuaKhung(Math.max(window.innerHeight - top, 300));
             }
             window.addEventListener('resize', datChieuCao);
             [0, 300, 1000].forEach(function (delay) { setTimeout(datChieuCao, delay); });
