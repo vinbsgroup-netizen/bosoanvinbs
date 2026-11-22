@@ -997,7 +997,7 @@ function buildWordKitRibbonHtml() {
         "</nav>",
         '<div class="wk-tabbar-right">',
         '<button type="button" class="wk-bar-btn" data-office-kit-command="download-docx" title="Tải về file Word (.docx)">' + wkIcon("download") + "<span>Tải DOCX</span></button>",
-        '<button type="button" class="wk-bar-btn" data-office-kit-command="print" title="In (Ctrl+P)">' + wkIcon("print") + "<span>In</span></button>",
+        '<button type="button" class="wk-bar-btn wk-bar-btn-in" data-office-kit-command="print" title="In (Ctrl+P)">' + wkIcon("print") + "<span>In</span></button>",
         '<button type="button" class="wk-bar-btn wk-collapse-btn" data-office-kit-command="toggle-ribbon" title="Thu gọn / hiện ribbon (Ctrl+F1). Bấm đúp vào tên tab cũng được.">' + wkIcon("chevronUp") + "</button>",
         "</div>",
         "</div>",
@@ -1228,6 +1228,43 @@ function installWordKitContextMenu(editorContainer, editor) {
 }
 
 // Thanh nho: hien khi bam chuot phai trong vung soan; an khi bam cho khac, go phim, lan chuot, Esc.
+
+// Giong Word: dat con tro, giu Shift roi bam chuot cho khac -> to den tu con tro toi cho bam.
+// Syncfusion ban nay bam chuot luon dat lai con tro (khong mo rong vung chon) nen tu lam: luc nhan chuot co Shift
+// nho diem dau vung chon hien tai, tha chuot xong chon tu diem do toi vi tri vua bam (keo chuot khi giu Shift cung duoc).
+function wireWordKitShiftClickSelect(editor) {
+    var element = editor.element;
+    if (!element || element.wordKitShiftClickWired) {
+        return;
+    }
+    element.wordKitShiftClickWired = true;
+    var diemDau = null;
+    element.addEventListener("mousedown", function (event) {
+        diemDau = null;
+        if (event.button !== 0 || !event.shiftKey || !editor.selection || !editor.selection.start) {
+            return;
+        }
+        try {
+            diemDau = editor.selection.start.clone();
+        } catch (e) {
+            diemDau = null;
+        }
+    }, true);
+    document.addEventListener("mouseup", function () {
+        if (!diemDau) {
+            return;
+        }
+        var dau = diemDau;
+        diemDau = null;
+        setTimeout(function () {
+            try {
+                editor.selection.selectPosition(dau, editor.selection.end.clone());
+            } catch (e) {
+                // Vi tri cu khong con hop le (van ban vua doi): giu nguyen cho vua bam.
+            }
+        }, 0);
+    }, true);
+}
 
 function wireWordKitMiniToolbar(editorContainer, editor) {
     var element = editor.element;
@@ -3428,6 +3465,11 @@ function injectSyncfusionOfficeKitChromeStyles() {
         ".wk-tabbar-right{display:flex;align-items:center;gap:4px;margin-left:auto}",
         ".wk-bar-btn{display:inline-flex;align-items:center;gap:5px;height:26px;padding:0 9px;border:1px solid transparent;border-radius:4px;background:transparent;white-space:nowrap;cursor:pointer}",
         ".wk-bar-btn:hover{border-color:var(--wk-border);background:var(--wk-hover)}",
+        "#syncfusion-office-kit-ribbon .wk-bar-btn.wk-bar-btn-in{margin-left:4px;padding:0 14px;border-color:var(--wk-accent);background:var(--wk-accent);color:#fff;font-weight:700;box-shadow:0 1px 3px rgba(24,90,189,.35)}",
+        "#syncfusion-office-kit-ribbon .wk-bar-btn.wk-bar-btn-in .wk-ico{stroke:#fff}",
+        "#syncfusion-office-kit-ribbon .wk-bar-btn.wk-bar-btn-in:hover{border-color:#124a9c;background:#124a9c;color:#fff}",
+        "#syncfusion-office-kit-ribbon .wk-bar-btn.wk-bar-btn-in:focus-visible{outline:2px solid #fff;outline-offset:-4px}",
+        "#syncfusion-office-kit-ribbon.wk-w-md .wk-bar-btn.wk-bar-btn-in span{display:inline}",
         ".wk-collapse-btn{padding:0 5px}",
         ".wk-collapsed .wk-collapse-btn .wk-ico{transform:rotate(180deg)}",
         ".wk-body{overflow-x:auto;overflow-y:hidden;border-top:1px solid var(--wk-border);border-bottom:1px solid var(--wk-border);background:var(--wk-bg);box-shadow:0 1px 2px rgb(0 0 0 / .05);scrollbar-width:thin}",
@@ -3994,6 +4036,7 @@ function attachWordKitEditorEvents(editorContainer) {
     watchWordKitTableBorderDrag(editorContainer, editor);
     installWordKitContextMenu(editorContainer, editor);
     wireWordKitMiniToolbar(editorContainer, editor);
+    wireWordKitShiftClickSelect(editor);
     patchWordKitPageSetupDialog(editor);
 
     document.addEventListener("mouseup", function (event) {
@@ -7006,6 +7049,87 @@ var documentExportQrRetryDelays = [0, 120, 350, 900, 1800, 3200, 5500, 8000, 120
 
 loadWordKitLocale();
 
+// Ten phong kieu cu tu RTF/Word theo bang ma Windows: "Times New Roman (Vietnamese)", "Arial CE", "Times New Roman Cyr"...
+// Ten co dau ngoac bi trinh duyet tu choi (canvas giu phong cu, the do chieu cao lay phong cua trang) nen Syncfusion do chu
+// sai: con tro nam lech dong, bam/keo chuot boi den nham dong tren, go chu xong con khoang trong. Doi ve ten phong goc.
+var wordKitHauToPhongCu = /^(.+?)\s+(?:\((?:Vietnamese|Central European|Cyrillic|Greek|Turkish|Baltic|Arabic|Hebrew|Thai|Western)\)|CE|Cyr|Greek|Tur|Baltic)$/;
+
+function chuanHoaTenPhongWordKit(tenPhong) {
+    var khop = wordKitHauToPhongCu.exec(String(tenPhong).trim());
+    return khop ? khop[1] : tenPhong;
+}
+
+// Mau RTF cu con ky tu dieu khien cua Word nam giua chu: U+001F (gach noi tuy chon), U+001E (gach noi khong ngat) va
+// cac ky tu dieu khien khac. Trinh duyet ve thanh o vuong "□" nhung Syncfusion tinh do rong khac nen con tro lech tren dong do.
+// Trong SFDT (JSON) chung luon o dang \u00XX; giu \t \n \r, \v (xuong dong) va \f (ngat trang) cua Syncfusion.
+function boKyTuDieuKhienSfdtWordKit(sfdt) {
+    return sfdt.replace(/(^|[^\\])((?:\\\\)*)\\u00(0[0-8]|0[eE]|1[0-9a-fA-F])/g, function (toanBo, truoc, gachCheo, ma) {
+        return truoc + gachCheo + (ma.toLowerCase() === "1e" ? "-" : "");
+    });
+}
+
+function chuanHoaTenPhongSfdtWordKit(sfdt) {
+    if (typeof sfdt !== "string") {
+        return sfdt;
+    }
+    if (sfdt.indexOf("\\u00") !== -1) {
+        sfdt = boKyTuDieuKhienSfdtWordKit(sfdt);
+    }
+    if (sfdt.indexOf("fontFamily") === -1) {
+        return sfdt;
+    }
+    return sfdt.replace(/("fontFamily[A-Za-z]*"\s*:\s*")((?:[^"\\]|\\.)*)"/g, function (toanBo, khoa, tenPhong) {
+        var tenMoi = chuanHoaTenPhongWordKit(tenPhong);
+        return tenMoi === tenPhong ? toanBo : khoa + tenMoi + '"';
+    });
+}
+
+function patchWordKitFontNamesOnOpen(editor) {
+    if (!editor || typeof editor.open !== "function" || editor.wordKitFontNamesPatched) {
+        return;
+    }
+    var originalOpen = editor.open;
+    editor.open = function (sfdt) {
+        var args = Array.prototype.slice.call(arguments);
+        args[0] = chuanHoaTenPhongSfdtWordKit(sfdt);
+        return originalOpen.apply(this, args);
+    };
+    editor.wordKitFontNamesPatched = true;
+}
+
+// Loi Syncfusion: updateViewerSizeInternal dat kich thuoc diem anh cua canvas (width/height) theo khung ngoai nhung khong doi
+// kich thuoc hien thi (style). Buoc ve ngay sau (updateScrollBars -> updateCanvasWidthAndHeight) so diem anh, thay "da dung co"
+// nen bo qua -> canvas hien thi bi co/gian so voi diem anh: chu ve lech khoi con tro, cang xuong duoi cang lech (vd. to khai V3
+// khi trang doi co vung soan hai lan lien tiep, chi thay tren Chrome co thanh cuon chiem cho). Sau moi lan dat co khung, canvas
+// nao lech thi xoa co de lan ve ngay sau dat lai ca diem anh lan kich thuoc hien thi. Syncfusion chi goi ham nay luc khoi tao
+// (canvas chua co style) va trong updateViewerSize (luon goi updateScrollBars ngay sau) nen canvas khong bi bo trong.
+function patchWordKitCanvasSizeSync(editor) {
+    var helper = editor && editor.documentHelper;
+    if (!helper || typeof helper.updateViewerSizeInternal !== "function" || helper.wordKitCanvasSizeSynced) {
+        return;
+    }
+    var originalUpdate = helper.updateViewerSizeInternal;
+    helper.updateViewerSizeInternal = function () {
+        var result = originalUpdate.apply(this, arguments);
+        var tiLe = Math.max(1, window.devicePixelRatio || 1);
+        var cacCanvas = [this.containerCanvas, this.selectionCanvas].filter(function (canvas) {
+            return canvas && canvas.style && canvas.style.width && canvas.style.height;
+        });
+        var lech = cacCanvas.some(function (canvas) {
+            return Math.abs(canvas.width - parseFloat(canvas.style.width) * tiLe) > 1
+                || Math.abs(canvas.height - parseFloat(canvas.style.height) * tiLe) > 1;
+        });
+        if (lech) {
+            cacCanvas.forEach(function (canvas) {
+                canvas.width = 0;
+                canvas.height = 0;
+            });
+        }
+        return result;
+    };
+    helper.wordKitCanvasSizeSynced = true;
+}
+
 // Khong dat serviceUrl: dan giu dinh dang doi HTML -> SFDT ngay tren trinh duyet (patchWordKitPasteHandler),
 // khong goi dich vu .NET (SystemClipboard).
 var container = new ej.documenteditor.DocumentEditorContainer({
@@ -7027,6 +7151,8 @@ var container = new ej.documenteditor.DocumentEditorContainer({
 
 window.container = container;
 container.appendTo("#container");
+patchWordKitFontNamesOnOpen(container.documentEditor);
+patchWordKitCanvasSizeSync(container.documentEditor);
 container.height = "900px";
 try {
     configureSyncfusionOfficeKit(container);
@@ -7090,7 +7216,10 @@ function initializeTitleBar(isShareNeeded) {
     var btnStyles = "float:right;background: transparent;box-shadow:none; font-family: inherit;border-color: transparent;" +
         "border-radius: 2px;color:inherit;font-size:12px;text-transform:capitalize;margin-top:4px;height:28px;font-weight:400";
 
-    print = addButton("e-de-icon-Print e-de-padding-right", "Print", btnStyles, "de-print", "Print this document (Ctrl+P).", false);
+    // Nut In noi bat tren thanh tieu de: chu trang, dam, vien trang mo.
+    var printStyles = btnStyles.replace("color:inherit", "color:#fff").replace("font-weight:400", "font-weight:700")
+        .replace("border-color: transparent", "border-color: rgba(255,255,255,.75)") + ";font-size:13px;padding:0 14px;background:rgba(255,255,255,.14)";
+    print = addButton("e-de-icon-Print e-de-padding-right", "In", printStyles, "de-print", "In văn bản (Ctrl+P).", false);
     openBtn = addButton("e-de-icon-Open e-de-padding-right", "Import VINBS", btnStyles, "de-open", "Import file VINBS", false);
 
     var items = [{ text: "Microsoft Word (.docx)", id: "word" }];
@@ -7332,6 +7461,39 @@ function fetchDocumentExportQrPayload() {
     return documentExportQrPayloadPromise;
 }
 
+// QR/logo vua chen co vai khoa rieng (documentExportQr, alternateText...) va khoa gia tri mac dinh (distanceTop: 0...)
+// ma serialize() cua Syncfusion bo di, thu tu khoa cung khac. So chuoi thi lan kiem tra nao cung thay "khac" va mo lai
+// ca van ban (ke ca luc nguoi dung dang go/keo chuot): so theo noi dung, bo qua cac khoa do.
+var wordKitKhoaBoQuaKhiSo = { documentExportQr: true, documentExportQrPlacement: true, documentExportLogo: true, alternateText: true };
+
+function chuanHoaDeSoSfdtWordKit(giaTri) {
+    if (Array.isArray(giaTri)) {
+        return giaTri.map(chuanHoaDeSoSfdtWordKit);
+    }
+    if (giaTri && typeof giaTri === "object") {
+        var ketQua = {};
+        Object.keys(giaTri).sort().forEach(function (khoa) {
+            var con = chuanHoaDeSoSfdtWordKit(giaTri[khoa]);
+            var macDinh = con === 0 || con === false || con === "" || con === null || con === undefined
+                || (typeof con === "object" && !Array.isArray(con) && Object.keys(con).length === 0);
+            if (!wordKitKhoaBoQuaKhiSo[khoa] && !macDinh) {
+                ketQua[khoa] = con;
+            }
+        });
+        return ketQua;
+    }
+    return giaTri;
+}
+
+function laCungNoiDungSfdtWordKit(sfdtA, sfdtB) {
+    try {
+        return JSON.stringify(chuanHoaDeSoSfdtWordKit(JSON.parse(sfdtA)))
+            === JSON.stringify(chuanHoaDeSoSfdtWordKit(JSON.parse(sfdtB)));
+    } catch (error) {
+        return false;
+    }
+}
+
 function ensureDocumentExportQr(editor) {
     if (!editor || typeof editor.serialize !== "function" || typeof editor.open !== "function") {
         return Promise.resolve(false);
@@ -7365,7 +7527,7 @@ function ensureDocumentExportQr(editor) {
                 updatedSfdt = addDocumentExportLogoToSfdt(updatedSfdt, logoPayload);
             }
 
-            if (updatedSfdt === currentSfdt) {
+            if (updatedSfdt === currentSfdt || laCungNoiDungSfdtWordKit(updatedSfdt, currentSfdt)) {
                 return false;
             }
 
@@ -8317,62 +8479,62 @@ function printSyncfusionOfficeKitDocument(editorContainer, editor) {
         return;
     }
 
-    // In bang chinh bo soan: Syncfusion ve tung trang dung nhu dang hien (moi trang mot anh, @page dung kho giay,
-    // khong le) -> ban in khop man hinh tung dong. Khong in duoc thi tao PDF ngay tren trinh duyet (anh tung trang)
-    // roi in bang print-js; khong con gui DOCX len may chu (DocToPDF).
+    // In nhanh (printSyncfusionOfficeKitFast): ve tung trang bang chinh bo ve trang khi in cua Syncfusion -> ban in
+    // khop man hinh tung dong, roi in bang iframe an ngay tren trang (khong mo cua so, khong tao PDF). Loi thi in qua
+    // PDF tao tren trinh duyet (print-js), cuoi cung la editor.print() cua Syncfusion.
     // Trang nao muon in qua PDF ngay tu dau: dat window.syncfusionOfficeKitPrintViaPdf = true (ten cu
     // window.syncfusionOfficeKitPrintViaServer van nhan).
-    var printWindow = null;
-    if (window.syncfusionOfficeKitPrintViaPdf !== true && window.syncfusionOfficeKitPrintViaServer !== true) {
-        // Mo cua so ngay luc bam (con trong cu chi nguoi dung) -> khong bi chan popup khi phai doi chen QR.
-        try {
-            printWindow = window.open("", "print", "height=452,width=1024,tabbar=no");
-            if (printWindow) {
-                printWindow.document.write("<p style=\"font:14px 'Segoe UI',Arial,sans-serif;color:#605e5c;margin:24px\">Đang chuẩn bị bản in…</p>");
-                printWindow.document.close();
-            }
-        } catch (error) {
-            printWindow = null;
+    if (syncfusionOfficeKitPrintBusy) {
+        if (typeof showWordKitToast === "function") {
+            showWordKitToast("Đang chuẩn bị bản in…");
         }
+        return Promise.resolve(false);
     }
+    syncfusionOfficeKitPrintBusy = true;
 
+    var viaPdf = window.syncfusionOfficeKitPrintViaPdf === true || window.syncfusionOfficeKitPrintViaServer === true;
     var qrPromise = typeof ensureDocumentExportQr === "function" ? ensureDocumentExportQr(editor) : Promise.resolve(false);
-    Promise.resolve(qrPromise)
+    return Promise.resolve(qrPromise)
         .catch(function (error) {
             console.error("Print QR prepare error:", error);
         })
         .then(function () {
-            if (printWindow && !printWindow.closed && typeof editor.print === "function") {
-                try {
-                    withWordKitPrintInk(function () {
-                        editor.print(printWindow);
-                    });
-                    return true;
-                } catch (error) {
-                    console.warn("Syncfusion Office kit WYSIWYG print failed, dung PDF may chu:", error);
-                    try {
-                        printWindow.close();
-                    } catch (closeError) {
-                        // Cua so da dong.
-                    }
-                }
-            }
-            if (canCreateSyncfusionOfficeKitPdf(editor)) {
-                return printSyncfusionOfficeKitViaPdf(editor)
-                    .catch(function (error) {
-                        console.warn("Syncfusion Office kit PDF print fallback:", error);
-                        if (!printSyncfusionOfficeKitDirect(editor, true)) {
-                            alert("Không in được văn bản. Vui lòng tải lại trang hoặc thử lại sau.");
-                        }
-                    });
+            if (!viaPdf && canCreateSyncfusionOfficeKitPdf(editor)) {
+                return printSyncfusionOfficeKitFast(editor).catch(function (error) {
+                    console.warn("Syncfusion Office kit fast print failed, in qua PDF:", error);
+                    return printSyncfusionOfficeKitViaPdfOrDirect(editor);
+                });
             }
 
-            var printedDirectly = printSyncfusionOfficeKitDirect(editor, true);
-            if (!printedDirectly) {
-                alert("Khong in duoc van ban. Vui long tai lai trang hoac thu lai sau.");
-            }
-            return printedDirectly;
+            return printSyncfusionOfficeKitViaPdfOrDirect(editor);
+        })
+        .then(function (printed) {
+            syncfusionOfficeKitPrintBusy = false;
+            return printed;
+        }, function (error) {
+            syncfusionOfficeKitPrintBusy = false;
+            throw error;
         });
+}
+
+var syncfusionOfficeKitPrintBusy = false;
+
+function printSyncfusionOfficeKitViaPdfOrDirect(editor) {
+    var direct = function () {
+        var printedDirectly = printSyncfusionOfficeKitDirect(editor, true);
+        if (!printedDirectly) {
+            alert("Không in được văn bản. Vui lòng tải lại trang hoặc thử lại sau.");
+        }
+        return printedDirectly;
+    };
+    if (!canCreateSyncfusionOfficeKitPdf(editor)) {
+        return Promise.resolve(direct());
+    }
+
+    return printSyncfusionOfficeKitViaPdf(editor).catch(function (error) {
+        console.warn("Syncfusion Office kit PDF print fallback:", error);
+        return direct();
+    });
 }
 
 // Chu in bang anh: vien chu khu rang cua la diem xam nhat, may in ban diem -> chu nhat, dut net. Luc Syncfusion
@@ -8517,6 +8679,223 @@ function printSyncfusionOfficeKitViaServer(editor) {
     return printSyncfusionOfficeKitViaPdf(editor);
 }
 
+// ---------------------------------------------------------------------------
+// In nhanh (nut In, Ctrl+P trong bo soan)
+// ---------------------------------------------------------------------------
+// Truoc day nut In goi editor.print() cua Syncfusion: moi trang ve o printDevicePixelRatio 6.25 (~600 dpi, ~35 trieu
+// diem mot trang A4), nen PNG base64 roi nap vao cua so moi -> vai giay moi trang. In nhanh ve tung trang ~240 dpi,
+// lam dam net chu, nen JPEG bang toBlob (ngoai luong chinh), dung object URL (khong doi base64) va in bang iframe an
+// ngay tren trang. Can net hon: window.syncfusionOfficeKitPrintDpi = 300 (72..600, cao hon thi cham hon).
+var syncfusionOfficeKitPrintOptions = {
+    dpi: 240,
+    jpegQuality: 0.92,
+};
+
+/**
+ * In nhanh toan bo van ban. Tra ve Promise<true> khi da mo hop thoai in.
+ */
+function printSyncfusionOfficeKitFast(editor) {
+    if (!canCreateSyncfusionOfficeKitPdf(editor)) {
+        return Promise.reject(new Error("Trình duyệt chưa sẵn sàng để in nhanh."));
+    }
+
+    var helper = editor.documentHelper;
+    var pages = (helper.pages || []).slice();
+    if (!pages.length) {
+        return Promise.reject(new Error("Văn bản không có trang nào để in."));
+    }
+
+    var dpi = Math.max(72, Math.min(600, Number(window.syncfusionOfficeKitPrintDpi) || syncfusionOfficeKitPrintOptions.dpi));
+    var quality = syncfusionOfficeKitPrintOptions.jpegQuality;
+    var settings = editor.documentEditorSettings;
+    var previousRatio = settings ? settings.printDevicePixelRatio : null;
+    var showProgress = pages.length >= 5 && typeof showWordKitToast === "function";
+    var images = [];
+    var index = 0;
+
+    // Bo ve trang khi in dung ti le max(devicePixelRatio, printDevicePixelRatio): dat tam ti le cho ~dpi.
+    if (settings) {
+        settings.printDevicePixelRatio = dpi / 96;
+    }
+    var restore = function () {
+        if (settings && settings.printDevicePixelRatio !== previousRatio) {
+            settings.printDevicePixelRatio = previousRatio;
+        }
+        releaseSyncfusionOfficeKitPageCanvas(helper.render);
+    };
+
+    return new Promise(function (resolve, reject) {
+        var fail = function (error) {
+            restore();
+            revokeSyncfusionOfficeKitPrintImages(images);
+            reject(error);
+        };
+        var next = function () {
+            if (index >= pages.length) {
+                restore();
+                printSyncfusionOfficeKitImages(images, editor.documentName).then(resolve, fail);
+                return;
+            }
+
+            var page = pages[index];
+            var canvas;
+            try {
+                canvas = drawSyncfusionOfficeKitPrintPage(editor, page, true);
+            } catch (error) {
+                fail(error);
+                return;
+            }
+            var size = getSyncfusionOfficeKitPageSizePt(page);
+            syncfusionOfficeKitCanvasToJpegBlob(canvas, quality).then(function (blob) {
+                images.push({ url: URL.createObjectURL(blob), width: size.width, height: size.height });
+                index += 1;
+                if (showProgress && index < pages.length) {
+                    showWordKitToast("Đang chuẩn bị bản in: " + index + "/" + pages.length + " trang…");
+                }
+                setTimeout(next, 0);
+            }).catch(fail);
+        };
+        next();
+    });
+}
+
+// Canvas -> Blob JPEG. toBlob nen anh ngoai luong chinh; trinh duyet khong co thi doi tu toDataURL.
+function syncfusionOfficeKitCanvasToJpegBlob(canvas, quality) {
+    return new Promise(function (resolve, reject) {
+        var fromDataUrl = function () {
+            try {
+                var base64 = String(canvas.toDataURL("image/jpeg", quality)).split(",")[1] || "";
+                var binary = atob(base64);
+                var bytes = new Uint8Array(binary.length);
+                for (var index = 0; index < binary.length; index += 1) {
+                    bytes[index] = binary.charCodeAt(index);
+                }
+                resolve(new Blob([bytes], { type: "image/jpeg" }));
+            } catch (error) {
+                reject(error);
+            }
+        };
+        if (typeof canvas.toBlob !== "function") {
+            fromDataUrl();
+            return;
+        }
+        canvas.toBlob(function (blob) {
+            if (blob) {
+                resolve(blob);
+            } else {
+                fromDataUrl();
+            }
+        }, "image/jpeg", quality);
+    });
+}
+
+function revokeSyncfusionOfficeKitPrintImages(images) {
+    (images || []).forEach(function (image) {
+        try {
+            URL.revokeObjectURL(image.url);
+        } catch (error) {
+            // Da thu hoi.
+        }
+    });
+}
+
+/**
+ * In cac anh trang ({ url, width, height } theo pt) bang iframe an: moi anh mot trang, kho giay dung kho trang, le 0
+ * (trinh duyet khong in tieu de/ngay gio o le). Trang khac kho (vd trang ngang) dung @page co ten rieng.
+ */
+function printSyncfusionOfficeKitImages(images, title) {
+    return new Promise(function (resolve, reject) {
+        var iframe = document.createElement("iframe");
+        iframe.setAttribute("aria-hidden", "true");
+        iframe.setAttribute("tabindex", "-1");
+        iframe.style.cssText = "position:fixed;right:0;bottom:0;width:0;height:0;border:0;visibility:hidden;";
+        document.body.appendChild(iframe);
+
+        var cleanedUp = false;
+        var cleanup = function () {
+            if (cleanedUp) {
+                return;
+            }
+            cleanedUp = true;
+            revokeSyncfusionOfficeKitPrintImages(images);
+            if (iframe.parentNode) {
+                iframe.parentNode.removeChild(iframe);
+            }
+        };
+
+        var frameWindow = iframe.contentWindow;
+        var frameDocument = frameWindow ? frameWindow.document : null;
+        if (!frameDocument) {
+            cleanup();
+            reject(new Error("Không tạo được khung in."));
+            return;
+        }
+
+        var first = images[0];
+        var sameSize = images.every(function (image) {
+            return image.width === first.width && image.height === first.height;
+        });
+        var pageRules = sameSize ? "@page{size:" + first.width + "pt " + first.height + "pt;margin:0}" : "";
+        var namedSizes = {};
+        var body = images.map(function (image) {
+            var name = "kho" + Math.round(image.width * 100) + "x" + Math.round(image.height * 100);
+            if (!sameSize && !namedSizes[name]) {
+                namedSizes[name] = true;
+                pageRules += "@page " + name + "{size:" + image.width + "pt " + image.height + "pt;margin:0}";
+            }
+            // Cao hon kho giay 1pt de lam tron khong day sang trang trang; anh cat 1pt day (le duoi, vung trong).
+            return "<div class=\"trang\" style=\"" + (sameSize ? "" : "page:" + name + ";") + "width:" + image.width
+                + "pt;height:" + Math.max(1, image.height - 1) + "pt\"><img src=\"" + image.url + "\" alt=\"\"></div>";
+        }).join("");
+        var safeTitle = String(title || "").replace(/[&<>"]/g, function (character) {
+            return { "&": "&amp;", "<": "&lt;", ">": "&gt;", "\"": "&quot;" }[character];
+        });
+
+        frameDocument.open();
+        frameDocument.write("<!DOCTYPE html><html><head><meta charset=\"utf-8\"><title>" + safeTitle + "</title><style>"
+            + pageRules
+            + "html,body{margin:0;padding:0;background:#fff}"
+            + ".trang{overflow:hidden;break-after:page;page-break-after:always}"
+            + ".trang:last-child{break-after:auto;page-break-after:auto}"
+            + ".trang img{display:block;width:100%;height:auto}"
+            + "</style></head><body>" + body + "</body></html>");
+        frameDocument.close();
+
+        var waitImage = function (image) {
+            if (typeof image.decode === "function") {
+                return image.decode().catch(function () {});
+            }
+            return new Promise(function (done) {
+                if (image.complete) {
+                    done();
+                    return;
+                }
+                image.onload = image.onerror = function () {
+                    done();
+                };
+            });
+        };
+
+        Promise.all(Array.prototype.map.call(frameDocument.images, waitImage)).then(function () {
+            // Chrome/Edge: print() cho den khi dong hop thoai in roi moi chay tiep, afterprint bao xong.
+            // Trinh duyet khong cho thi don sau 5 phut.
+            frameWindow.addEventListener("afterprint", function () {
+                setTimeout(cleanup, 1000);
+            });
+            setTimeout(cleanup, 5 * 60 * 1000);
+            try {
+                frameWindow.focus();
+                frameWindow.print();
+            } catch (error) {
+                cleanup();
+                reject(error);
+                return;
+            }
+            resolve(true);
+        });
+    });
+}
+
 /**
  * Doi blob DOCX sang PDF (base64, khong kem tien to data:), tao ngay tren trinh duyet.
  * Modal "Cong chung so — tao phien" (dotary hopdongv2/cong_chung_so_modal.blade.php) goi ham nay voi blob vua xuat tu
@@ -8631,27 +9010,42 @@ function createSyncfusionOfficeKitPdfBlob(editor, options) {
 }
 
 function renderSyncfusionOfficeKitPageJpeg(editor, page, quality, ink) {
+    var canvas;
+    try {
+        canvas = drawSyncfusionOfficeKitPrintPage(editor, page, ink);
+    } catch (error) {
+        return Promise.reject(error);
+    }
+
+    var size = getSyncfusionOfficeKitPageSizePt(page);
+    return syncfusionOfficeKitCanvasToJpegBase64(canvas, quality).then(function (base64) {
+        return { base64: base64, width: size.width, height: size.height, pixelWidth: canvas.width, pixelHeight: canvas.height };
+    });
+}
+
+// Ve mot trang bang bo ve trang khi in cua Syncfusion (ti le theo printDevicePixelRatio), tra ve canvas dung chung.
+function drawSyncfusionOfficeKitPrintPage(editor, page, ink) {
     var render = editor.documentHelper.render;
-    var canvas = null;
     try {
         render.isPrinting = true;
         render.renderWidgets(page, 0, 0, 0, 0);
-        canvas = render.pageCanvas;
+        var canvas = render.pageCanvas;
         if (ink) {
             darkenWordKitPrintCanvas(canvas);
         }
-    } catch (error) {
-        return Promise.reject(error);
+        return canvas;
     } finally {
         render.isPrinting = false;
     }
+}
 
+// Kho trang theo pt (1 px CSS = 0.75 pt).
+function getSyncfusionOfficeKitPageSizePt(page) {
     var bounds = page.boundingRectangle;
-    var width = Math.round(bounds.width * 0.75 * 100) / 100;
-    var height = Math.round(bounds.height * 0.75 * 100) / 100;
-    return syncfusionOfficeKitCanvasToJpegBase64(canvas, quality).then(function (base64) {
-        return { base64: base64, width: width, height: height, pixelWidth: canvas.width, pixelHeight: canvas.height };
-    });
+    return {
+        width: Math.round(bounds.width * 0.75 * 100) / 100,
+        height: Math.round(bounds.height * 0.75 * 100) / 100,
+    };
 }
 
 // Canvas -> JPEG base64. toBlob nen anh ngoai luong chinh (khong khung trang); trinh duyet khong co thi dung toDataURL.
@@ -8846,7 +9240,7 @@ function withSyncfusionOfficeKitHiddenEditor(blob, work) {
                     height: "800px",
                 });
                 hiddenEditor.appendTo(host);
-                hiddenEditor.open(sfdtText);
+                hiddenEditor.open(chuanHoaTenPhongSfdtWordKit(sfdtText));
             } catch (error) {
                 cleanup();
                 return Promise.reject(error);
@@ -8939,7 +9333,9 @@ function printSyncfusionOfficeKitDirect(editor, silent) {
 
     try {
         if (typeof editor.print === "function") {
-            editor.print();
+            withWordKitPrintInk(function () {
+                editor.print();
+            });
             return true;
         }
     } catch (error) {
