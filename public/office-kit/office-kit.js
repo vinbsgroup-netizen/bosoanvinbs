@@ -2991,11 +2991,24 @@ function beginWordKitRulerDrag(editorContainer, page, axis, event) {
     handle.classList.add("syncfusion-office-kit-ruler-dragging");
     document.body.classList.add("syncfusion-office-kit-ruler-user-select-none");
 
+    // setPointerCapture lam con tro lay theo page: giu dung con tro cua vach dang keo.
+    page.style.cursor = window.getComputedStyle(handle).cursor;
+
     var isTab = kind === "tab" || kind === "newTab";
-    var state = { point: pointAt(event.clientX, event.clientY), off: false };
+    // Bam lech tam vach thi giu nguyen khoang lech, vach khong nhay toi dau con tro.
+    var startPercent = parseFloat(handle.style[axis === "x" ? "left" : "top"]);
+    var startPointer = pointAt(event.clientX, event.clientY);
+    var grabOffset = kind !== "newTab" && Number.isFinite(startPercent) ? startPercent / 100 * pageSize - startPointer : 0;
+    // Bam ma chua keo (moved = false) thi khong doi gi.
+    var state = { point: startPointer + grabOffset, off: false, moved: kind === "newTab" };
     var move = function (moveEvent) {
-        var point = pointAt(moveEvent.clientX, moveEvent.clientY);
-        if (isTab) {
+        if (!state.moved && Math.abs(moveEvent.clientX - event.clientX) + Math.abs(moveEvent.clientY - event.clientY) >= 2) {
+            state.moved = true;
+        }
+        var point = state.moved
+            ? syncfusionOfficeKitClampNumber(pointAt(moveEvent.clientX, moveEvent.clientY) + grabOffset, 0, pageSize)
+            : state.point;
+        if (isTab && state.moved) {
             var relative = point - textBox.left;
             if (!moveEvent.altKey) {
                 relative = Math.round(relative / wordKitTabSnap) * wordKitTabSnap;
@@ -3026,11 +3039,12 @@ function beginWordKitRulerDrag(editorContainer, page, axis, event) {
             page.releasePointerCapture(endEvent.pointerId);
         }
         page.classList.remove("wk-ruler-dragging");
+        page.style.cursor = "";
         handle.classList.remove("syncfusion-office-kit-ruler-dragging");
         document.body.classList.remove("syncfusion-office-kit-ruler-user-select-none");
         hideWordKitGuides();
 
-        if (endEvent.type !== "pointercancel") {
+        if (endEvent.type !== "pointercancel" && state.moved) {
             try {
                 applyWordKitRulerDrag(editorContainer, editor, kind, handle, state, textBox, page);
             } catch (error) {
@@ -3622,37 +3636,43 @@ function injectSyncfusionOfficeKitChromeStyles() {
         ".wk-w-md .wk-tab{padding:0 8px}",
         ".wk-w-sm .wk-style:nth-child(3){display:none}",
         ".wk-w-sm .contract-template-office-font-family{width:122px}",
-        // Thuoc kieu Word: mong 18px, so 9px nam giua, cham o 1/4 cm va vach ngan o 1/2 cm, le la vung xam
-        // (keo ranh gioi xam/trang de chinh le), vach thut le hinh dong ho cat nen trang vien xam.
+        // Thuoc kieu Word: dai thuoc 16px, so 9px nam giua, cham o 1/4 cm va vach ngan o 1/2 cm, le la vung xam
+        // (keo ranh gioi xam/trang de chinh le), vach thut le hinh ngu giac nen trang vien xam.
+        // Vach thut le 13px, vung bat chuot 15px chia thanh 3 tang khong de len nhau; con tro mui ten nhu Word.
+        // Vach le (con tro hai chieu) noi ra phia vung xam de van bam duoc khi vach thut le nam ngay tren le.
         ".syncfusion-office-kit-rulers-enabled{position:relative;background:#e5e5e5!important}",
         ".syncfusion-office-kit-ruler-body{position:relative!important}",
-        ".syncfusion-office-kit-horizontal-ruler{position:relative;z-index:28;display:grid!important;grid-template-columns:18px minmax(0,1fr);height:20px;min-height:20px;overflow:hidden;background:#e5e5e5}",
+        ".syncfusion-office-kit-horizontal-ruler{position:relative;z-index:28;display:grid!important;grid-template-columns:18px minmax(0,1fr);height:24px;min-height:24px;overflow:hidden;background:#e5e5e5}",
         ".syncfusion-office-kit-horizontal-ruler-track{position:relative;overflow:hidden;background:#e5e5e5;--office-kit-ruler-page-left:0px;--office-kit-ruler-page-width:100%}",
-        ".syncfusion-office-kit-horizontal-ruler-page{position:absolute;top:2px;bottom:0;left:var(--office-kit-ruler-page-left);width:var(--office-kit-ruler-page-width);overflow:hidden;background:linear-gradient(#fff,#fff) 0 0/100% 14px no-repeat;--office-kit-ruler-centimeter-width:38px;--office-kit-ruler-half-centimeter-width:calc(var(--office-kit-ruler-centimeter-width) / 2);--office-kit-ruler-left-margin:10%;--office-kit-ruler-right-margin:10%}",
-        ".syncfusion-office-kit-horizontal-ruler-page:before{position:absolute;top:0;right:0;left:0;height:14px;z-index:1;background-image:repeating-linear-gradient(to right,#5f5f5f 0 1px,transparent 1px var(--office-kit-ruler-half-centimeter-width)),repeating-linear-gradient(to right,#5f5f5f 0 1px,transparent 1px var(--office-kit-ruler-centimeter-width));background-repeat:repeat-x;background-size:calc(var(--office-kit-ruler-centimeter-width) * 10) 1px,calc(var(--office-kit-ruler-centimeter-width) * 10) 4px;background-position:calc(var(--office-kit-ruler-origin,0px) + var(--office-kit-ruler-centimeter-width) / 4) 50%,calc(var(--office-kit-ruler-origin,0px) + var(--office-kit-ruler-centimeter-width) / 2) 50%;pointer-events:none;content:''}",
+        ".syncfusion-office-kit-horizontal-ruler-page{position:absolute;top:2px;bottom:0;left:var(--office-kit-ruler-page-left);width:var(--office-kit-ruler-page-width);overflow:hidden;background:linear-gradient(#fff,#fff) 0 0/100% 16px no-repeat;--office-kit-ruler-centimeter-width:38px;--office-kit-ruler-half-centimeter-width:calc(var(--office-kit-ruler-centimeter-width) / 2);--office-kit-ruler-left-margin:10%;--office-kit-ruler-right-margin:10%}",
+        ".syncfusion-office-kit-horizontal-ruler-page:before{position:absolute;top:0;right:0;left:0;height:16px;z-index:1;background-image:repeating-linear-gradient(to right,#5f5f5f 0 1px,transparent 1px var(--office-kit-ruler-half-centimeter-width)),repeating-linear-gradient(to right,#5f5f5f 0 1px,transparent 1px var(--office-kit-ruler-centimeter-width));background-repeat:repeat-x;background-size:calc(var(--office-kit-ruler-centimeter-width) * 10) 1px,calc(var(--office-kit-ruler-centimeter-width) * 10) 4px;background-position:calc(var(--office-kit-ruler-origin,0px) + var(--office-kit-ruler-centimeter-width) / 4) 50%,calc(var(--office-kit-ruler-origin,0px) + var(--office-kit-ruler-centimeter-width) / 2) 50%;pointer-events:none;content:''}",
         ".syncfusion-office-kit-horizontal-ruler-page:after{display:none}",
-        ".syncfusion-office-kit-horizontal-margin-zone{position:absolute;top:0;height:14px;z-index:0;background:#cbcbcb;pointer-events:none}",
+        ".syncfusion-office-kit-horizontal-margin-zone{position:absolute;top:0;height:16px;z-index:0;background:#cbcbcb;pointer-events:none}",
         ".syncfusion-office-kit-horizontal-margin-left{left:0;width:var(--office-kit-ruler-left-margin)}",
         ".syncfusion-office-kit-horizontal-margin-right{right:0;width:var(--office-kit-ruler-right-margin)}",
-        ".syncfusion-office-kit-horizontal-ruler-number{position:absolute;top:6px;left:calc(var(--office-kit-ruler-origin,0px) + var(--office-kit-ruler-position) * var(--office-kit-ruler-centimeter-width));z-index:2;color:#3b3b3b;font:9px/1 'Segoe UI',Arial,sans-serif;transform:translate(-50%,-50%);pointer-events:none}",
-        ".syncfusion-office-kit-ruler-handle{position:absolute;top:0;height:14px;z-index:4;width:11px;padding:0;border:0;background:transparent;transform:translateX(-50%);cursor:ew-resize;pointer-events:auto;touch-action:none}",
+        ".syncfusion-office-kit-horizontal-ruler-number{position:absolute;top:7px;left:calc(var(--office-kit-ruler-origin,0px) + var(--office-kit-ruler-position) * var(--office-kit-ruler-centimeter-width));z-index:2;color:#3b3b3b;font:9px/1 'Segoe UI',Arial,sans-serif;transform:translate(-50%,-50%);pointer-events:none}",
+        ".syncfusion-office-kit-ruler-handle{position:absolute;top:0;height:16px;z-index:4;width:21px;padding:0;border:0;background:transparent;cursor:ew-resize;pointer-events:auto;touch-action:none}",
+        ".syncfusion-office-kit-ruler-handle-left{transform:translateX(-15.5px)}",
+        ".syncfusion-office-kit-ruler-handle-right{transform:translateX(-5.5px)}",
         ".syncfusion-office-kit-ruler-handle:hover,.syncfusion-office-kit-vertical-handle:hover{background:rgb(24 90 189 / .22)}",
-        ".syncfusion-office-kit-indent-handle{position:absolute;z-index:5;width:9px;padding:0;border:0;background:transparent;transform:translateX(-50%);cursor:ew-resize;pointer-events:auto;touch-action:none}",
+        ".syncfusion-office-kit-indent-handle{position:absolute;z-index:5;width:15px;padding:0;border:0;background:transparent;transform:translateX(-50%);cursor:default;pointer-events:auto;touch-action:none}",
         ".syncfusion-office-kit-indent-handle:before,.syncfusion-office-kit-indent-handle:after{position:absolute;content:''}",
-        ".syncfusion-office-kit-indent-handle:before{inset:0;background:#6b6b6b}",
-        ".syncfusion-office-kit-indent-handle:after{inset:1px;background:#fff}",
+        ".syncfusion-office-kit-indent-handle:before{inset:0 1px;background:#6b6b6b}",
+        ".syncfusion-office-kit-indent-handle:after{inset:1px 2px;background:#fff}",
         ".syncfusion-office-kit-indent-handle:hover:before,.syncfusion-office-kit-indent-handle.syncfusion-office-kit-ruler-dragging:before{background:#185abd}",
-        ".syncfusion-office-kit-indent-first-line{top:0;height:6px;clip-path:polygon(0 0,100% 0,50% 100%)}",
-        ".syncfusion-office-kit-indent-first-line:before,.syncfusion-office-kit-indent-first-line:after{clip-path:polygon(0 0,100% 0,50% 100%)}",
-        ".syncfusion-office-kit-indent-hanging{bottom:5px;height:6px;clip-path:polygon(50% 0,100% 100%,0 100%)}",
-        ".syncfusion-office-kit-indent-hanging:before,.syncfusion-office-kit-indent-hanging:after{clip-path:polygon(50% 0,100% 100%,0 100%)}",
-        ".syncfusion-office-kit-indent-left{bottom:0;height:6px}",
+        ".syncfusion-office-kit-indent-first-line{top:0;height:8px}",
+        ".syncfusion-office-kit-indent-first-line:before,.syncfusion-office-kit-indent-first-line:after{clip-path:polygon(0 0,100% 0,100% 40%,50% 100%,0 40%)}",
+        ".syncfusion-office-kit-indent-hanging{bottom:6px;height:8px}",
+        ".syncfusion-office-kit-indent-hanging:before,.syncfusion-office-kit-indent-hanging:after{clip-path:polygon(50% 0,100% 60%,100% 100%,0 100%,0 60%)}",
+        ".syncfusion-office-kit-indent-left{bottom:0;height:7px}",
         
-        ".syncfusion-office-kit-indent-right{bottom:5px;height:6px;clip-path:polygon(50% 0,100% 100%,0 100%)}",
-        ".syncfusion-office-kit-indent-right:before,.syncfusion-office-kit-indent-right:after{clip-path:polygon(50% 0,100% 100%,0 100%)}",
+        ".syncfusion-office-kit-indent-right{bottom:0;height:14px}",
+        ".syncfusion-office-kit-indent-right:before{bottom:6px}",
+        ".syncfusion-office-kit-indent-right:after{bottom:7px}",
+        ".syncfusion-office-kit-indent-right:before,.syncfusion-office-kit-indent-right:after{clip-path:polygon(50% 0,100% 60%,100% 100%,0 100%,0 60%)}",
         ".syncfusion-office-kit-tab-origin{display:none}",
-        ".syncfusion-office-kit-tab-stop{position:absolute;bottom:0;z-index:5;width:7px;height:4px;padding:0;border:0;background:transparent;transform:translateX(-50%);cursor:ew-resize;pointer-events:auto;touch-action:none}",
-        ".syncfusion-office-kit-tab-stop:before{position:absolute;top:1px;left:3px;width:1px;height:2px;background:#9b9b9b;content:''}",
+        ".syncfusion-office-kit-tab-stop{position:absolute;bottom:0;z-index:5;width:9px;height:6px;padding:0;border:0;background:transparent;transform:translateX(-50%);cursor:default;pointer-events:auto;touch-action:none}",
+        ".syncfusion-office-kit-tab-stop:before{position:absolute;top:1px;left:4px;width:1px;height:3px;background:#9b9b9b;content:''}",
         ".syncfusion-office-kit-vertical-ruler{position:absolute;top:0;bottom:0;left:0;z-index:27;width:18px;overflow:hidden;background:#e5e5e5;pointer-events:auto;--office-kit-ruler-page-top:0px;--office-kit-ruler-page-height:760px}",
         ".syncfusion-office-kit-vertical-ruler-page{position:absolute;top:var(--office-kit-ruler-page-top);left:2px;width:14px;height:var(--office-kit-ruler-page-height);overflow:hidden;background:#fff;--office-kit-ruler-centimeter-height:38px;--office-kit-ruler-top-margin:7%;--office-kit-ruler-bottom-margin:7%}",
         ".syncfusion-office-kit-vertical-ruler-page:before{position:absolute;inset:0;z-index:1;background-image:repeating-linear-gradient(to bottom,#5f5f5f 0 1px,transparent 1px calc(var(--office-kit-ruler-centimeter-height) / 2)),repeating-linear-gradient(to bottom,#5f5f5f 0 1px,transparent 1px var(--office-kit-ruler-centimeter-height));background-repeat:repeat-y;background-size:1px calc(var(--office-kit-ruler-centimeter-height) * 10),4px calc(var(--office-kit-ruler-centimeter-height) * 10);background-position:50% calc(var(--office-kit-ruler-origin-y,0px) + var(--office-kit-ruler-centimeter-height) / 4),50% calc(var(--office-kit-ruler-origin-y,0px) + var(--office-kit-ruler-centimeter-height) / 2);pointer-events:none;content:''}",
@@ -3664,7 +3684,7 @@ function injectSyncfusionOfficeKitChromeStyles() {
         ".syncfusion-office-kit-vertical-handle{position:absolute;right:0;left:0;z-index:4;height:7px;padding:0;border:0;background:transparent;transform:translateY(-50%);cursor:ns-resize;pointer-events:auto;touch-action:none}",
         ".syncfusion-office-kit-ruler-user-select-none{user-select:none!important}",
         ".syncfusion-office-kit-rulers-hidden .syncfusion-office-kit-horizontal-ruler,.syncfusion-office-kit-rulers-hidden .syncfusion-office-kit-vertical-ruler{display:none!important}",
-        ".wk-tab-selector{display:grid!important;box-sizing:border-box;width:14px;height:14px;margin:2px;padding:0;place-items:center;border:1px solid #bdbdbd;background:#fff;cursor:pointer}",
+        ".wk-tab-selector{display:grid!important;box-sizing:border-box;width:14px;height:14px;margin:3px 2px;padding:0;place-items:center;border:1px solid #bdbdbd;background:#fff;cursor:pointer}",
         ".wk-tab-selector:hover{border-color:#185abd}",
         ".wk-tab-glyph{position:relative;display:block;box-sizing:border-box;width:6px;height:6px}",
         ".wk-tab-glyph-left{border-bottom:2px solid #1f1f1f;border-left:2px solid #1f1f1f}",
@@ -3672,14 +3692,14 @@ function injectSyncfusionOfficeKitChromeStyles() {
         ".wk-tab-glyph-center{width:8px;border-bottom:2px solid #1f1f1f}",
         ".wk-tab-glyph-center:before{position:absolute;top:0;bottom:0;left:50%;width:2px;margin-left:-1px;background:#1f1f1f;content:''}",
         ".wk-ruler-cols,.wk-ruler-tabs,.wk-ruler-rows{position:absolute;inset:0;z-index:6;pointer-events:none}",
-        ".wk-ruler-tab{position:absolute;bottom:5px;box-sizing:border-box;width:6px;height:5px;pointer-events:auto;cursor:ew-resize}",
-        ".wk-ruler-tab:after{position:absolute;inset:-4px -3px -1px -3px;content:''}",
+        ".wk-ruler-tab{position:absolute;bottom:7px;box-sizing:border-box;width:8px;height:7px;pointer-events:auto;cursor:default}",
+        ".wk-ruler-tab:after{position:absolute;inset:-5px -3px -2px -3px;content:''}",
         ".wk-ruler-tab-left,.wk-ruler-tab-list,.wk-ruler-tab-bar{margin-left:-1px;border-bottom:2px solid #1f1f1f;border-left:2px solid #1f1f1f}",
-        ".wk-ruler-tab-right{margin-left:-5px;border-right:2px solid #1f1f1f;border-bottom:2px solid #1f1f1f}",
-        ".wk-ruler-tab-center,.wk-ruler-tab-decimal{width:8px;margin-left:-4px;border-bottom:2px solid #1f1f1f}",
+        ".wk-ruler-tab-right{margin-left:-7px;border-right:2px solid #1f1f1f;border-bottom:2px solid #1f1f1f}",
+        ".wk-ruler-tab-center,.wk-ruler-tab-decimal{width:10px;margin-left:-5px;border-bottom:2px solid #1f1f1f}",
         ".wk-ruler-tab-center:before,.wk-ruler-tab-decimal:before{position:absolute;top:0;bottom:0;left:50%;width:2px;margin-left:-1px;background:#1f1f1f;content:''}",
         ".wk-ruler-tab.wk-removing{opacity:.25}",
-        ".wk-ruler-col{position:absolute;top:3px;bottom:7px;box-sizing:border-box;width:7px;margin-left:-3.5px;border:1px solid #8c8c8c;background:repeating-linear-gradient(135deg,#6e6e6e 0 1px,#e6e6e6 1px 3px);pointer-events:auto;cursor:col-resize}",
+        ".wk-ruler-col{position:absolute;top:3px;bottom:9px;box-sizing:border-box;width:7px;margin-left:-3.5px;border:1px solid #8c8c8c;background:repeating-linear-gradient(135deg,#6e6e6e 0 1px,#e6e6e6 1px 3px);pointer-events:auto;cursor:col-resize}",
         ".wk-ruler-row{position:absolute;right:3px;left:3px;box-sizing:border-box;height:7px;margin-top:-3.5px;border:1px solid #8c8c8c;background:repeating-linear-gradient(135deg,#6e6e6e 0 1px,#e6e6e6 1px 3px);pointer-events:auto;cursor:row-resize}",
         ".wk-ruler-row-fixed{opacity:.55;pointer-events:none}",
         ".wk-ruler-col:hover,.wk-ruler-row:hover,.wk-ruler-col.syncfusion-office-kit-ruler-dragging,.wk-ruler-row.syncfusion-office-kit-ruler-dragging{border-color:#185abd}",
