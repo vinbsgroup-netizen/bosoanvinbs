@@ -467,6 +467,29 @@ var wordKitIcons = {
     valignBottom: '<rect x="3" y="3" width="14" height="14" rx=".5"/><path class="a" d="M6 11h8M6 13.5h8"/>',
     checkbox: '<rect x="3.5" y="3.5" width="13" height="13" rx="1.5"/><path class="a" d="M6.5 10.2l2.4 2.4 4.6-5"/>',
     cellMargin: '<rect x="2.5" y="2.5" width="15" height="15" rx=".5"/><rect class="a dash" x="5.5" y="5.5" width="9" height="9"/>',
+    // Menu "Số trang" (giống Word: Đầu trang / Cuối trang / Vị trí hiện tại / Định dạng / Xóa).
+    pnTop: '<rect x="4" y="2.5" width="12" height="15" rx="1"/><text class="t ta" x="8" y="8.5" font-size="6">#</text><path d="M6.5 11h7M6.5 13.5h7"/>',
+    pnBottom: '<rect x="4" y="2.5" width="12" height="15" rx="1"/><path d="M6.5 5.5h7M6.5 8h7"/><text class="t ta" x="8" y="16" font-size="6">#</text>',
+    pnCurrent: '<rect x="4" y="2.5" width="12" height="15" rx="1"/><path d="M6.5 5.5h7M6.5 13.5h7"/><text class="t ta" x="8" y="11.8" font-size="6">#</text>',
+    pnFormat: '<rect x="3" y="2.5" width="10" height="13" rx="1"/><text class="t ta" x="5.5" y="11.5" font-size="6">#</text><path class="a" d="M12.5 17.5l4.5-4.5 1.5 1.5-4.5 4.5h-1.5z"/>',
+    pnRemove: '<rect x="3" y="2.5" width="10" height="13" rx="1"/><text class="t ta" x="5.5" y="11.5" font-size="6">#</text><path class="d" d="M12.5 12.5l5 5M17.5 12.5l-5 5"/>',
+    textToTable: '<path d="M3 3.5h6M3 6.5h6M3 9.5h4"/><path class="a" d="M10 6.5h2.5M11.2 5.2l1.3 1.3-1.3 1.3"/><rect x="8" y="10" width="9.5" height="7.5" rx=".5"/><path d="M8 13.7h9.5M12.7 10v7.5"/>',
+    // Viền kiểu Word: khung chấm là viền không đổi, nét liền là viền được áp dụng.
+    borderBottom: '<rect class="dot" x="3" y="3" width="14" height="14"/><path class="dot" d="M10 3v14M3 10h14"/><path class="edge" d="M2.5 17h15"/>',
+    borderTop: '<rect class="dot" x="3" y="3" width="14" height="14"/><path class="dot" d="M10 3v14M3 10h14"/><path class="edge" d="M2.5 3h15"/>',
+    borderLeft: '<rect class="dot" x="3" y="3" width="14" height="14"/><path class="dot" d="M10 3v14M3 10h14"/><path class="edge" d="M3 2.5v15"/>',
+    borderRight: '<rect class="dot" x="3" y="3" width="14" height="14"/><path class="dot" d="M10 3v14M3 10h14"/><path class="edge" d="M17 2.5v15"/>',
+    borderNone: '<rect class="dot" x="3" y="3" width="14" height="14"/><path class="dot" d="M10 3v14M3 10h14"/>',
+    borderAll: '<rect x="3" y="3" width="14" height="14"/><path d="M10 3v14M3 10h14"/>',
+    borderOutside: '<rect x="3" y="3" width="14" height="14"/><path class="dot" d="M10 3v14M3 10h14"/>',
+    borderInside: '<rect class="dot" x="3" y="3" width="14" height="14"/><path d="M10 3v14M3 10h14"/>',
+    borderInsideH: '<rect class="dot" x="3" y="3" width="14" height="14"/><path class="dot" d="M10 3v14"/><path d="M3 10h14"/>',
+    borderInsideV: '<rect class="dot" x="3" y="3" width="14" height="14"/><path class="dot" d="M3 10h14"/><path d="M10 3v14"/>',
+    hLine: '<path d="M3 4.5h9M3 7h6"/><path class="a" d="M2.5 10.5h15"/><path d="M3 14h9M3 16.5h6"/>',
+    bordersDialog: '<rect x="3.5" y="2.5" width="13" height="15" rx="1"/><rect class="a" x="6" y="5" width="8" height="6"/><path d="M6 13.5h8"/>',
+    pagePortrait: '<path d="M5 1.5h7.5l3.5 3.5v13.5H5z"/><path d="M12.5 1.5V5H16"/><path class="a" d="M7 7.5h7M7 9.5h7M7 11.5h7M7 13.5h7M7 15.5h4.5"/>',
+    pageLandscape: '<path d="M1.5 4.5h13.5l3.5 3.5v7.5h-17z"/><path d="M15 4.5V8h3.5"/><path class="a" d="M3.5 8h10M3.5 10h13M3.5 12h13M3.5 14h8"/>',
+    palette: '<path d="M10 2.5a7.5 7.5 0 100 15c1.2 0 1.8-.8 1.4-1.9-.5-1.2.3-2.3 1.6-2.3h1.6a3 3 0 003-3c0-4.3-3.4-7.8-7.6-7.8z"/><circle class="f" cx="6" cy="9" r="1.2" style="fill:#e97132"/><circle class="f" cx="8.5" cy="5.5" r="1.2" style="fill:#4ea72e"/><circle class="f" cx="12.5" cy="5.8" r="1.2" style="fill:#0f9ed5"/>',
 };
 
 // Mau phong chu: hang mau chuan cua Office + vai mau dam/xam hay dung trong van ban.
@@ -482,9 +505,15 @@ var wordKitHighlightColors = [
     ["Violet", "#800080", "Tím"], ["DarkRed", "#800000", "Đỏ sẫm"], ["DarkYellow", "#808000", "Vàng sẫm"],
     ["Gray50", "#808080", "Xám đậm"], ["Gray25", "#C0C0C0", "Xám nhạt"], ["Black", "#000000", "Đen"],
 ];
-var wordKitShadingColors = [
-    "#FFFFFF", "#F2F2F2", "#D9D9D9", "#BFBFBF", "#DEEAF6", "#BDD7EE", "#E2EFD9", "#C5E0B3", "#FFF2CC", "#FBE4D5",
-    "#FFFF00", "#FFC000", "#92D050", "#00B0F0", "#9DC3E6", "#F4B183", "#FF9999", "#D9C3E9", "#808080", "#000000",
+// Bang mau "Tô bóng" nhu Word 365: hang mau chu de (Office 2023), 5 hang sang/toi cua tung mau, roi mau chuan.
+var wordKitThemeColors = [
+    ["#FFFFFF", "Trắng, Nền 1"], ["#000000", "Đen, Văn bản 1"], ["#E8E8E8", "Xám nhạt, Nền 2"], ["#0E2841", "Xanh đậm, Văn bản 2"],
+    ["#156082", "Xanh lam, Nhấn 1"], ["#E97132", "Cam, Nhấn 2"], ["#196B24", "Xanh lá, Nhấn 3"], ["#0F9ED5", "Xanh trời, Nhấn 4"],
+    ["#A02B93", "Tím, Nhấn 5"], ["#4EA72E", "Xanh cỏ, Nhấn 6"],
+];
+var wordKitStandardColors = [
+    ["#C00000", "Đỏ sẫm"], ["#FF0000", "Đỏ"], ["#FFC000", "Cam"], ["#FFFF00", "Vàng"], ["#92D050", "Xanh lá nhạt"],
+    ["#00B050", "Xanh lá"], ["#00B0F0", "Xanh trời"], ["#0070C0", "Xanh lam"], ["#002060", "Xanh đậm"], ["#7030A0", "Tím"],
 ];
 var wordKitSymbols = "§№©®™°±×÷≤≥≠≈∞…–—«»“”‘’•✓✗→←↑↓½¼¾€£¥₫¶†‰µΩαβπΣ√²³¹".split("");
 
@@ -593,11 +622,133 @@ function wkMenu(name, items, extraClass) {
     return '<div class="wk-menu' + (extraClass ? " " + extraClass : "") + '" data-wk-menu="' + name + '" role="menu">' + items.join("") + "</div>";
 }
 
+// options.needs: "table" (chi dung duoc trong bang) / "selection" (can boi den) -> menu mo ra thi tu lam mo nhu Word.
 function wkMenuItem(command, arg, icon, label, hint, options) {
     options = options || {};
-    return '<button type="button" class="wk-menu-item" role="menuitem"' + wkCommandAttrs(command, { arg: arg === null ? undefined : arg, state: options.state }) + ">"
-        + (icon ? wkIcon(icon) : '<span class="wk-menu-blank"></span>')
+    return '<button type="button" class="wk-menu-item' + (options.large ? " wk-menu-item-lg" : "") + '" role="menuitem"' + wkCommandAttrs(command, { arg: arg === null ? undefined : arg, state: options.state })
+        + (options.needs ? ' data-wk-needs="' + options.needs + '"' : "") + (options.title ? ' title="' + wkEscape(options.title) + '"' : "") + ">"
+        + (icon ? wkIcon(icon, options.large) : '<span class="wk-menu-blank"></span>')
         + '<span class="wk-menu-text">' + label + (hint ? "<small>" + hint + "</small>" : "") + "</span></button>";
+}
+
+// Muc mo menu con ben phai (nhu "Top of Page ▸" cua Word). Menu con la mot wkMenu rieng, dat ten = submenu.
+function wkSubmenuItem(submenu, icon, label) {
+    return '<button type="button" class="wk-menu-item wk-has-sub" role="menuitem" aria-haspopup="true" data-wk-submenu="' + submenu + '">'
+        + (icon ? wkIcon(icon) : '<span class="wk-menu-blank"></span>')
+        + '<span class="wk-menu-text">' + label + '</span><span class="wk-sub-arrow" aria-hidden="true">' + wkIcon("chevronDown") + "</span></button>";
+}
+
+// Mau sang hon / toi hon theo do sang HSL, cach Word tinh hang mau chu de.
+function wkAdjustColor(hex, amount) {
+    var r = parseInt(hex.slice(1, 3), 16) / 255;
+    var g = parseInt(hex.slice(3, 5), 16) / 255;
+    var b = parseInt(hex.slice(5, 7), 16) / 255;
+    var max = Math.max(r, g, b);
+    var min = Math.min(r, g, b);
+    var l = (max + min) / 2;
+    var h = 0;
+    var s = 0;
+    if (max !== min) {
+        var d = max - min;
+        s = l > 0.5 ? d / (2 - max - min) : d / (max + min);
+        h = max === r ? (g - b) / d + (g < b ? 6 : 0) : max === g ? (b - r) / d + 2 : (r - g) / d + 4;
+        h /= 6;
+    }
+    l = amount > 0 ? l + (1 - l) * amount : l * (1 + amount);
+    var hue = function (p, q, t) {
+        t = t < 0 ? t + 1 : t > 1 ? t - 1 : t;
+        if (t < 1 / 6) {
+            return p + (q - p) * 6 * t;
+        }
+        if (t < 1 / 2) {
+            return q;
+        }
+        if (t < 2 / 3) {
+            return p + (q - p) * (2 / 3 - t) * 6;
+        }
+        return p;
+    };
+    var q = l < 0.5 ? l * (1 + s) : l + s - l * s;
+    var p = 2 * l - q;
+    var channels = s === 0 ? [l, l, l] : [hue(p, q, h + 1 / 3), hue(p, q, h), hue(p, q, h - 1 / 3)];
+    return "#" + channels.map(function (value) {
+        return ("0" + Math.round(value * 255).toString(16)).slice(-2);
+    }).join("").toUpperCase();
+}
+
+function wkThemeShades(hex) {
+    var r = parseInt(hex.slice(1, 3), 16);
+    var g = parseInt(hex.slice(3, 5), 16);
+    var b = parseInt(hex.slice(5, 7), 16);
+    var lightness = (Math.max(r, g, b) + Math.min(r, g, b)) / 510;
+    if (lightness >= 0.99) {
+        return [[-0.05, "Tối hơn 5%"], [-0.15, "Tối hơn 15%"], [-0.25, "Tối hơn 25%"], [-0.35, "Tối hơn 35%"], [-0.5, "Tối hơn 50%"]];
+    }
+    if (lightness <= 0.01) {
+        return [[0.5, "Sáng hơn 50%"], [0.35, "Sáng hơn 35%"], [0.25, "Sáng hơn 25%"], [0.15, "Sáng hơn 15%"], [0.05, "Sáng hơn 5%"]];
+    }
+    if (lightness > 0.8) {
+        return [[-0.1, "Tối hơn 10%"], [-0.25, "Tối hơn 25%"], [-0.5, "Tối hơn 50%"], [-0.75, "Tối hơn 75%"], [-0.9, "Tối hơn 90%"]];
+    }
+    if (lightness < 0.2) {
+        return [[0.9, "Sáng hơn 90%"], [0.75, "Sáng hơn 75%"], [0.5, "Sáng hơn 50%"], [0.25, "Sáng hơn 25%"], [0.1, "Sáng hơn 10%"]];
+    }
+    return [[0.8, "Sáng hơn 80%"], [0.6, "Sáng hơn 60%"], [0.4, "Sáng hơn 40%"], [-0.25, "Tối hơn 25%"], [-0.5, "Tối hơn 50%"]];
+}
+
+// Bang mau kieu Word: "Màu chủ đề" (hang goc + 5 hang sang/toi theo cot), "Màu chuẩn", "Không màu", "Màu khác...".
+function wkThemePalette(command, noColorLabel, customChange) {
+    var swatch = function (value, title) {
+        return '<button type="button" class="wk-swatch" data-office-kit-command="' + command + '" data-office-kit-arg="' + value + '" title="' + wkEscape(title) + '" style="background:' + value + '"></button>';
+    };
+    var shades = wordKitThemeColors.map(function (color) {
+        return wkThemeShades(color[0]).map(function (shade) {
+            return swatch(wkAdjustColor(color[0], shade[0]), color[1] + ", " + shade[1]);
+        });
+    });
+    var shadeGrid = "";
+    for (var row = 0; row < 5; row += 1) {
+        shadeGrid += shades.map(function (column) {
+            return column[row];
+        }).join("");
+    }
+    return [
+        wkMenuHeading("Màu chủ đề"),
+        '<div class="wk-colors wk-colors-theme">' + wordKitThemeColors.map(function (color) {
+            return swatch(color[0], color[1]);
+        }).join("") + "</div>",
+        '<div class="wk-colors wk-colors-shades">' + shadeGrid + "</div>",
+        wkMenuHeading("Màu chuẩn"),
+        '<div class="wk-colors">' + wordKitStandardColors.map(function (color) {
+            return swatch(color[0], color[1]);
+        }).join("") + "</div>",
+        wkMenuSep(),
+        '<button type="button" class="wk-menu-item" role="menuitem" data-office-kit-command="' + command + '" data-office-kit-arg=""><span class="wk-swatch wk-swatch-none" aria-hidden="true"></span><span class="wk-menu-text">' + noColorLabel + "</span></button>",
+        '<label class="wk-menu-item">' + wkIcon("palette") + '<span class="wk-menu-text">Màu khác...</span><input type="color" class="wk-hidden-color" value="#D9D9D9" data-office-kit-change="' + customChange + '"></label>',
+    ].join("");
+}
+
+// Mau xem truoc cho thu vien "Số trang": mot dai giay voi so trang o dau/cuoi trang, can trai/giua/phai.
+function wkPageNumberItem(where, align, style, label) {
+    var sample = style === "xofy" ? "Trang <b>1</b>/<b>3</b>" : "1";
+    var justify = { Left: "flex-start", Center: "center", Right: "flex-end" }[align];
+    return '<button type="button" class="wk-pn-item" role="menuitem" data-office-kit-command="page-number" data-office-kit-arg="' + where + "," + align + "," + style + '" title="' + wkEscape(label) + '">'
+        + '<span class="wk-pn-name">' + label + "</span>"
+        + '<span class="wk-pn-sheet wk-pn-' + where + '" style="justify-content:' + justify + '"><span class="wk-pn-num">' + sample + "</span></span>"
+        + "</button>";
+}
+
+function wkPageNumberGallery(where) {
+    return [
+        wkMenuHeading("Số đơn giản"),
+        wkPageNumberItem(where, "Left", "plain", "Số thường 1"),
+        wkPageNumberItem(where, "Center", "plain", "Số thường 2"),
+        wkPageNumberItem(where, "Right", "plain", "Số thường 3"),
+        wkMenuHeading("Trang X/Y"),
+        wkPageNumberItem(where, "Left", "xofy", "Số đậm 1"),
+        wkPageNumberItem(where, "Center", "xofy", "Số đậm 2"),
+        wkPageNumberItem(where, "Right", "xofy", "Số đậm 3"),
+    ];
 }
 
 function wkMenuSep() {
@@ -621,6 +772,7 @@ function buildWordKitRibbonHtml() {
     var fontColorGlyph = '<span class="wk-glyph wk-glyph-color">A<span class="wk-color-bar" data-wk-color-bar="font" style="background:#C00000"></span></span>';
     var highlightGlyph = '<span class="wk-glyph wk-glyph-color wk-glyph-small">ab<span class="wk-color-bar" data-wk-color-bar="highlight" style="background:#FFFF00"></span></span>';
     var shadingGlyph = '<span class="wk-glyph-color">' + wkIcon("shading", true) + '<span class="wk-color-bar wk-color-bar-wide" data-wk-color-bar="shading" style="background:#D9D9D9"></span></span>';
+    var smallShadingGlyph = '<span class="wk-glyph-color">' + wkIcon("shading") + '<span class="wk-color-bar" data-wk-color-bar="shading" style="background:#D9D9D9"></span></span>';
 
     var home = wkPanel("home", [
         wkGroup("Bộ nhớ tạm", [
@@ -654,6 +806,12 @@ function buildWordKitRibbonHtml() {
                 wkSep(),
                 wkSplit("highlight-apply", highlightGlyph, "Màu tô sáng văn bản", "highlight"),
                 wkSplit("font-color-apply", fontColorGlyph, "Màu phông chữ", "font-color"),
+                wkSep(),
+                wkSplit("table-shading-apply", smallShadingGlyph, "Tô bóng", "shading"),
+                '<span class="wk-split">'
+                    + '<button type="button" class="wk-btn wk-btn-i" data-office-kit-command="border-last" data-wk-border-last title="Viền dưới">' + wkIcon("borderBottom") + "</button>"
+                    + '<button type="button" class="wk-btn wk-caret" data-wk-menu-toggle="borders" aria-haspopup="true" title="Viền">' + wkIcon("chevronDown") + "</button>"
+                    + "</span>",
             ],
         ]), "font-dialog", "Phông chữ (Ctrl+D)", "wk-group-font"),
         wkGroup("Đoạn văn", wkRows([
@@ -694,7 +852,7 @@ function buildWordKitRibbonHtml() {
         wkGroup("Minh họa", wkLarge("insert-image", "picture", "Ảnh", { title: "Chèn ảnh từ máy" })),
         wkGroup("Liên kết", wkLarge("insert-link", "link", "Liên kết", { title: "Chèn liên kết (Ctrl+K)" }) + wkLarge("insert-bookmark", "bookmark", "Dấu trang")),
         wkGroup("Chú thích", wkLarge("insert-comment", "comment", "Chú thích")),
-        wkGroup("Đầu trang & Chân trang", wkLarge("insert-header", "header", "Đầu trang") + wkLarge("insert-footer", "footer", "Chân trang") + wkLarge("insert-page-number", "pageNumber", "Số trang")),
+        wkGroup("Đầu trang & Chân trang", wkLarge("insert-header", "header", "Đầu trang") + wkLarge("insert-footer", "footer", "Chân trang") + wkLarge("", "pageNumber", "Số trang", { menu: "page-number" })),
         wkGroup("Văn bản", wkLarge("insert-date-time", "date", "Ngày & giờ", { title: "Chèn ngày hôm nay" })),
         wkGroup("Ký hiệu", wkLarge("", "symbol", "Ký hiệu", { menu: "symbol" })),
         wkGroup("Biểu mẫu", wkLarge("insert-checkbox", "checkbox", "Ô đánh dấu", { title: "Chèn ô đánh dấu ☐ (bấm vào ô trong văn bản để đánh dấu)" })),
@@ -890,7 +1048,50 @@ function buildWordKitRibbonHtml() {
             '<div class="wk-table-grid" data-wk-table-grid>' + tableGridCells.join("") + "</div>",
             wkMenuSep(),
             wkMenuItem("insert-table-dialog", null, "table", "Chèn bảng..."),
+            wkMenuItem("text-to-table", null, "textToTable", "Chuyển văn bản thành bảng...", null, {
+                needs: "selection",
+                title: "Bôi đen các dòng cần chuyển (mỗi dòng một hàng, ngăn cột bằng Tab, dấu phẩy...)",
+            }),
         ]),
+        wkMenu("page-number", [
+            wkSubmenuItem("page-number-top", "pnTop", "Đầu trang"),
+            wkSubmenuItem("page-number-bottom", "pnBottom", "Cuối trang"),
+            wkSubmenuItem("page-number-current", "pnCurrent", "Vị trí hiện tại"),
+            wkMenuSep(),
+            wkMenuItem("page-number-format", null, "pnFormat", "Định dạng số trang..."),
+            wkMenuItem("page-number-remove", null, "pnRemove", "Xóa số trang"),
+        ]),
+        wkMenu("page-number-top", wkPageNumberGallery("top"), "wk-submenu wk-menu-pn"),
+        wkMenu("page-number-bottom", wkPageNumberGallery("bottom"), "wk-submenu wk-menu-pn"),
+        wkMenu("page-number-current", [
+            wkMenuHeading("Số đơn giản"),
+            wkMenuItem("page-number", "current,,plain", null, "Số thường", "Chèn số trang tại con trỏ"),
+            wkMenuHeading("Trang X/Y"),
+            wkMenuItem("page-number", "current,,xofy", null, "Số đậm", "Trang <b>1</b>/<b>3</b>"),
+        ], "wk-submenu"),
+        wkMenu("borders", [
+            wkMenuItem("border-BottomBorder", null, "borderBottom", "Viền dưới", null, { needs: "table" }),
+            wkMenuItem("border-TopBorder", null, "borderTop", "Viền trên", null, { needs: "table" }),
+            wkMenuItem("border-LeftBorder", null, "borderLeft", "Viền trái", null, { needs: "table" }),
+            wkMenuItem("border-RightBorder", null, "borderRight", "Viền phải", null, { needs: "table" }),
+            wkMenuSep(),
+            wkMenuItem("border-NoBorder", null, "borderNone", "Không viền", null, { needs: "table" }),
+            wkMenuItem("border-AllBorders", null, "borderAll", "Tất cả viền", null, { needs: "table" }),
+            wkMenuItem("border-OutsideBorders", null, "borderOutside", "Viền ngoài", null, { needs: "table" }),
+            wkMenuItem("border-InsideBorders", null, "borderInside", "Viền trong", null, { needs: "table" }),
+            wkMenuSep(),
+            wkMenuItem("border-InsideHorizontalBorder", null, "borderInsideH", "Viền ngang bên trong", null, { needs: "table" }),
+            wkMenuItem("border-InsideVerticalBorder", null, "borderInsideV", "Viền dọc bên trong", null, { needs: "table" }),
+            wkMenuSep(),
+            wkMenuItem("horizontal-line", null, "hLine", "Đường kẻ ngang"),
+            wkMenuSep(),
+            wkMenuItem("borders-shading", null, "bordersDialog", "Viền và tô bóng...", null, { needs: "table" }),
+            '<div class="wk-menu-note" data-wk-needs-note="table">Bộ soạn chỉ kẻ viền được cho ô bảng. Đặt con trỏ vào bảng để dùng các mục đang mờ.</div>',
+        ], "wk-menu-borders"),
+        wkMenu("shading", [
+            '<div class="wk-menu-note" data-wk-needs-note="table">Bộ soạn chỉ tô bóng được ô bảng. Đặt con trỏ vào bảng trước khi chọn màu.</div>',
+            wkThemePalette("table-shading", "Không màu", "shading-custom"),
+        ], "wk-menu-colors wk-menu-palette"),
         wkMenu("symbol", [
             '<div class="wk-symbols">' + wordKitSymbols.map(function (symbol) {
                 return '<button type="button" class="wk-symbol" data-office-kit-command="insert-symbol" data-office-kit-arg="' + wkEscape(symbol) + '" title="' + wkEscape(symbol) + '">' + wkEscape(symbol) + "</button>";
@@ -906,9 +1107,12 @@ function buildWordKitRibbonHtml() {
             wkMenuItem("page-setup", null, null, "Lề tùy chỉnh..."),
         ]),
         wkMenu("orientation", [
-            wkMenuItem("orientation", "Portrait", "pageSize", "Dọc", null, { state: "orientation-portrait" }),
-            wkMenuItem("orientation", "Landscape", "orientation", "Ngang", null, { state: "orientation-landscape" }),
-        ]),
+            wkMenuItem("orientation", "Portrait", "pagePortrait", "Dọc", null, { state: "orientation-portrait", large: true }),
+            wkMenuItem("orientation", "Landscape", "pageLandscape", "Ngang", null, { state: "orientation-landscape", large: true }),
+            wkMenuSep(),
+            wkMenuItem("orientation-selection", "Landscape", "pageLandscape", "Chỉ xoay ngang trang này", "Trang có con trỏ, hoặc các đoạn đang bôi đen. Các trang khác giữ nguyên."),
+            wkMenuItem("orientation-selection", "Portrait", "pagePortrait", "Chỉ xoay dọc trang này"),
+        ], "wk-menu-orientation"),
         wkMenu("page-size", [
             wkMenuItem("page-size", "A4", "blankPage", "A4", "21 cm × 29,7 cm"),
             wkMenuItem("page-size", "A5", "blankPage", "A5", "14,8 cm × 21 cm"),
@@ -972,10 +1176,8 @@ function buildWordKitRibbonHtml() {
             wkMenuItem("borders-shading", null, "launcher", "Viền và tô bóng..."),
         ]),
         wkMenu("table-shading", [
-            wkColorGrid("table-shading", wordKitShadingColors),
-            wkMenuSep(),
-            wkMenuItem("table-shading", "", null, "Không tô"),
-        ], "wk-menu-colors"),
+            wkThemePalette("table-shading", "Không màu", "shading-custom"),
+        ], "wk-menu-colors wk-menu-palette"),
     ];
 
     return [
@@ -1413,6 +1615,7 @@ function openWordKitMenu(toggle) {
     if (name === "table-insert") {
         highlightWordKitTableGrid(ribbon, "0,0");
     }
+    refreshWordKitMenuAvailability(menu);
     menu.classList.add("wk-open");
     toggle.classList.add("wk-menu-active");
 
@@ -1434,8 +1637,65 @@ function closeWordKitMenus() {
     document.querySelectorAll(".wk-menu.wk-open").forEach(function (menu) {
         menu.classList.remove("wk-open");
     });
-    document.querySelectorAll(".wk-menu-active").forEach(function (button) {
-        button.classList.remove("wk-menu-active");
+    document.querySelectorAll(".wk-menu-active, .wk-sub-open").forEach(function (button) {
+        button.classList.remove("wk-menu-active", "wk-sub-open");
+    });
+}
+
+// Muc chi dung duoc trong bang / khi dang boi den thi lam mo, nhu Word lam mo "Diagonal Border" ngoai bang.
+function refreshWordKitMenuAvailability(menu) {
+    var editor = getSyncfusionOfficeKitEditor(window.container);
+    var available = {
+        table: isWordKitSelectionInTable(editor),
+        selection: !!(editor && editor.selection && !editor.selection.isEmpty),
+    };
+    menu.querySelectorAll("[data-wk-needs]").forEach(function (item) {
+        item.disabled = !available[item.getAttribute("data-wk-needs")];
+    });
+    menu.querySelectorAll("[data-wk-needs-note]").forEach(function (note) {
+        note.hidden = available[note.getAttribute("data-wk-needs-note")];
+    });
+}
+
+// Menu con ("Đầu trang ▸" trong menu "Số trang"): mo sat ben phai muc, menu cha van mo.
+function openWordKitSubmenu(item) {
+    var ribbon = document.getElementById("syncfusion-office-kit-ribbon");
+    var submenu = ribbon ? ribbon.querySelector('[data-wk-menu="' + item.getAttribute("data-wk-submenu") + '"]') : null;
+    if (!submenu) {
+        return;
+    }
+    closeWordKitSubmenus(item.closest(".wk-menu"), submenu);
+    if (submenu.classList.contains("wk-open")) {
+        return;
+    }
+
+    refreshWordKitMenuAvailability(submenu);
+    submenu.classList.add("wk-open");
+    item.classList.add("wk-sub-open");
+    var rect = item.getBoundingClientRect();
+    var width = submenu.offsetWidth;
+    var height = submenu.offsetHeight;
+    var left = rect.right + 2;
+    if (left + width > window.innerWidth - 4) {
+        left = Math.max(4, rect.left - width - 2);
+    }
+    var top = Math.max(4, Math.min(rect.top - 5, window.innerHeight - height - 4));
+    submenu.style.left = Math.round(left) + "px";
+    submenu.style.top = Math.round(top) + "px";
+}
+
+function closeWordKitSubmenus(parentMenu, keep) {
+    if (!parentMenu) {
+        return;
+    }
+    parentMenu.querySelectorAll("[data-wk-submenu].wk-sub-open").forEach(function (item) {
+        var submenu = document.querySelector('[data-wk-menu="' + item.getAttribute("data-wk-submenu") + '"]');
+        if (submenu !== keep) {
+            item.classList.remove("wk-sub-open");
+            if (submenu) {
+                submenu.classList.remove("wk-open");
+            }
+        }
     });
 }
 
@@ -3536,6 +3796,8 @@ function injectSyncfusionOfficeKitChromeStyles() {
         ".wk-ico .d{stroke:#c50f1f}",
         ".wk-ico .g{stroke:#107c10}",
         ".wk-ico .dash{stroke-dasharray:2 1.6}",
+        ".wk-ico .dot{stroke:#a19f9d;stroke-dasharray:1 1.4}",
+        ".wk-ico .edge{stroke-width:2}",
         ".wk-glyph{display:inline-block;min-width:12px;font:600 15px/1 'Segoe UI',Arial,sans-serif;text-align:center}",
         ".wk-glyph-serif{font-family:'Times New Roman',Georgia,serif;font-size:16px}",
         ".wk-glyph-small{font-size:12.5px}",
@@ -3602,6 +3864,86 @@ function injectSyncfusionOfficeKitChromeStyles() {
         ".contract-template-office-combo-menu button[hidden]{display:none}",
         ".wk-toast{position:fixed;bottom:28px;left:50%;z-index:5000;max-width:min(560px,calc(100vw - 32px));padding:10px 16px;border-radius:6px;background:#323130;color:#fff;font:13px/1.4 'Segoe UI',Arial,sans-serif;box-shadow:0 6px 20px rgb(0 0 0 / .25);opacity:0;pointer-events:none;transform:translate(-50%,20px);transition:opacity .2s,transform .2s}",
         ".wk-toast-show{opacity:1;transform:translate(-50%,0)}",
+        // Menu kieu Word: muc lam mo, muc mo menu con, thu vien so trang, bang mau, muc lon (Dọc / Ngang).
+        ".wk-menu-item:disabled{background:transparent;color:#a19f9d;cursor:default}",
+        ".wk-menu-item:disabled .wk-ico{opacity:.45}",
+        ".wk-menu-item.wk-has-sub{align-items:center}",
+        ".wk-menu-item.wk-has-sub .wk-menu-text{flex:1 1 auto}",
+        ".wk-sub-arrow .wk-ico{width:10px;height:10px;transform:rotate(-90deg)}",
+        ".wk-menu-item.wk-sub-open{background:var(--wk-hover)}",
+        ".wk-menu .wk-menu-note[hidden]{display:none}",
+        ".wk-menu-borders .wk-menu-item{padding-top:4px;padding-bottom:4px}",
+        ".wk-menu-borders .wk-menu-note{max-width:230px;border-top:1px solid var(--wk-border);margin-top:4px;padding-top:6px}",
+        ".wk-menu-pn{width:250px;max-width:250px}",
+        ".wk-pn-item{display:flex;flex-direction:column;gap:4px;width:100%;margin:0;padding:5px 8px 7px;border:1px solid transparent;border-radius:4px;background:transparent;text-align:left;cursor:pointer}",
+        ".wk-pn-item:hover{border-color:#c7e0f4;background:var(--wk-accent-soft)}",
+        ".wk-pn-name{color:var(--wk-text);font-size:12px}",
+        ".wk-pn-sheet{display:flex;align-items:center;height:30px;padding:0 10px;border:1px solid #c8c6c4;background:#fff;font:11px 'Times New Roman',serif;color:#252423}",
+        ".wk-pn-sheet.wk-pn-top{align-items:flex-start;padding-top:4px;border-top:2px solid #c8c6c4;background:linear-gradient(#fff 16px,#f3f2f1 16px)}",
+        ".wk-pn-sheet.wk-pn-bottom{align-items:flex-end;padding-bottom:4px;border-bottom:2px solid #c8c6c4;background:linear-gradient(#f3f2f1 14px,#fff 14px)}",
+        ".wk-pn-num{padding:0 2px;outline:1px dashed #8a8886;outline-offset:1px;background:#fff}",
+        ".wk-menu-palette{max-width:none}",
+        ".wk-colors-theme{padding-bottom:2px}",
+        ".wk-colors-shades{row-gap:0;padding-top:2px}",
+        ".wk-colors-shades .wk-swatch{border-top-width:0;border-bottom-width:0;border-radius:0}",
+        ".wk-colors-shades .wk-swatch:nth-child(-n+10){border-top-width:1px}",
+        ".wk-colors-shades .wk-swatch:nth-last-child(-n+10){border-bottom-width:1px}",
+        ".wk-swatch-none{display:inline-block;flex:0 0 16px;width:16px;height:16px;background:#fff;cursor:inherit}",
+        ".wk-menu-palette .wk-menu-note{max-width:236px;padding-bottom:4px}",
+        ".wk-menu-orientation{min-width:170px}",
+        ".wk-menu-item-lg{align-items:center;gap:12px;padding:6px 14px 6px 8px}",
+        ".wk-menu-item-lg .wk-ico-lg{width:40px;height:40px;margin:0}",
+        ".wk-menu-item-lg .wk-menu-text{font-size:13px}",
+        // Hop thoai kieu Word (Đoạn văn, Định dạng số trang, Chuyển văn bản thành bảng).
+        ".wk-dlg-backdrop{position:fixed;inset:0;z-index:4000;display:flex;align-items:center;justify-content:center;padding:16px;background:rgb(0 0 0 / .08)}",
+        ".wk-dlg,.wk-dlg *{box-sizing:border-box}",
+        ".wk-dlg{display:flex;flex-direction:column;max-width:100%;max-height:calc(100vh - 32px);border:1px solid #8a8886;border-radius:8px;background:#f3f3f3;box-shadow:0 12px 40px rgb(0 0 0 / .28);color:#1b1b1b;font:12px/1.35 'Segoe UI',Arial,sans-serif;text-align:left;user-select:none}",
+        ".wk-dlg-head{display:flex;align-items:center;min-height:34px;padding:0 4px 0 12px;cursor:move}",
+        ".wk-dlg-title{flex:1 1 auto;font-size:12px}",
+        ".wk-dlg-x{width:40px;height:30px;padding:0;border:0;border-radius:4px;background:transparent;color:#1b1b1b;font-size:13px;cursor:pointer}",
+        ".wk-dlg-x:hover{background:#c42b1c;color:#fff}",
+        ".wk-dlg-body{flex:1 1 auto;overflow:auto;margin:0 8px;padding:2px 10px 10px;border:1px solid #d6d6d6;border-radius:4px;background:#f9f9f9}",
+        ".wk-dlg-tabs{display:flex;gap:2px;margin:6px -10px 4px;padding:0 6px;border-bottom:1px solid #d6d6d6}",
+        ".wk-dlg-tab{margin:0 0 -1px;padding:4px 9px;border:1px solid transparent;border-bottom:0;border-radius:3px 3px 0 0;background:transparent;color:#1b1b1b;font:inherit;cursor:pointer}",
+        ".wk-dlg-tab:hover{background:#e9e9e9}",
+        ".wk-dlg-tab.wk-on{border-color:#d6d6d6;background:#f9f9f9}",
+        ".wk-dlg-page[hidden]{display:none}",
+        ".wk-dlg-section{display:flex;align-items:center;gap:6px;margin:9px 0 5px;color:#1b1b1b;font-size:12px}",
+        ".wk-dlg-section:after{flex:1 1 auto;height:1px;background:#d6d6d6;content:''}",
+        ".wk-dlg-grid4{display:grid;grid-template-columns:92px 100px 130px 84px;align-items:center;gap:5px 10px;padding-left:10px}",
+        ".wk-dlg-grid2{display:grid;grid-template-columns:110px 1fr;align-items:center;gap:6px 10px;padding-left:10px}",
+        ".wk-dlg-radios{grid-template-columns:1fr 1fr}",
+        ".wk-dlg-row{display:flex;align-items:center;gap:10px;margin:5px 0;padding-left:10px}",
+        ".wk-dlg-label{margin:0;color:#1b1b1b;font-size:12px;font-weight:400;white-space:nowrap}",
+        ".wk-dlg-off{color:#a0a0a0}",
+        ".wk-dlg-static{padding-left:4px}",
+        ".wk-dlg-select,.wk-dlg-input{height:24px;margin:0;padding:0 6px;border:1px solid #8a8886;border-radius:3px;background:#fff;color:#1b1b1b;font:12px 'Segoe UI',Arial,sans-serif;user-select:text}",
+        ".wk-dlg-select{width:100%;padding-right:2px}",
+        ".wk-dlg-select:disabled,.wk-dlg-input:disabled{border-color:#c8c8c8;background:#f0f0f0;color:#a0a0a0}",
+        ".wk-dlg-select:focus,.wk-dlg-input:focus{border-color:#005fb8;outline:0;box-shadow:inset 0 -1px 0 #005fb8}",
+        ".wk-dlg-tiny{width:34px;margin-left:4px;text-align:center}",
+        ".wk-spin{position:relative;display:inline-flex;width:100%;min-width:0}",
+        ".wk-spin .wk-dlg-input{width:100%;padding-right:18px}",
+        ".wk-spin-btns{position:absolute;top:1px;right:1px;bottom:1px;display:flex;flex-direction:column;width:16px}",
+        ".wk-spin-btns button{display:grid;flex:1 1 50%;place-items:center;padding:0;border:0;border-left:1px solid #e1e1e1;background:#fff;color:#605e5c;cursor:pointer}",
+        ".wk-spin-btns button:hover{background:#e5f1fb}",
+        ".wk-spin-btns button:disabled{cursor:default;opacity:.4}",
+        ".wk-spin-btns .wk-ico{width:8px;height:8px}",
+        ".wk-dlg-check{display:flex;align-items:center;gap:6px;margin:5px 0 5px 10px;color:#1b1b1b;font-size:12px;font-weight:400;cursor:pointer}",
+        ".wk-dlg-check input[type=checkbox],.wk-dlg-check input[type=radio]{width:13px;height:13px;margin:0;accent-color:#005fb8}",
+        ".wk-dlg-check.wk-dlg-off{cursor:default}",
+        ".wk-dlg-grid4 .wk-dlg-check{margin:0}",
+        ".wk-dlg-radios .wk-dlg-check{margin:2px 0}",
+        ".wk-dlg-note{margin:8px 0 0 10px;color:#605e5c;font-size:11.5px;line-height:1.4}",
+        ".wk-dlg-preview{height:118px;margin:0 0 2px 10px;padding:8px 12px;overflow:hidden;border:1px solid #8a8886;background:#fff;font:5.6px/7px 'Times New Roman',serif;color:#1b1b1b;word-break:break-all}",
+        ".wk-pp-ghost{color:#b4b4b4;text-align:left;line-height:7px}",
+        ".wk-pp-sample{color:#1b1b1b}",
+        ".wk-dlg-foot{display:flex;align-items:center;gap:8px;padding:10px 8px 8px}",
+        ".wk-dlg-gap{flex:1 1 auto}",
+        ".wk-dlg-btn{min-width:74px;height:26px;padding:0 12px;border:1px solid #d1d1d1;border-radius:4px;background:#fdfdfd;color:#1b1b1b;font:12px 'Segoe UI',Arial,sans-serif;cursor:pointer}",
+        ".wk-dlg-btn:hover{background:#f5f5f5}",
+        ".wk-dlg-ok{border-color:#005fb8;box-shadow:inset 0 0 0 1px #005fb8}",
+        "@media (max-width:520px){.wk-dlg-grid4{grid-template-columns:1fr 1fr;padding-left:0}.wk-dlg-preview{margin-left:0}}",
         ".wk-painting [id$='_viewerContainer'],.wk-painting [id$='_viewerContainer'] *{cursor:copy!important}",
         // Nhu Word: vung quanh trang mau xam, trang van trang (canvas to nen trang theo mau nen van ban);
         // theme material de .e-de-background trang nen trang va le hoa lam mot.
@@ -3829,6 +4171,12 @@ function wireSyncfusionOfficeKitChrome(ribbon, editorContainer) {
             return;
         }
 
+        var submenuItem = event.target.closest("[data-wk-submenu]");
+        if (submenuItem) {
+            openWordKitSubmenu(submenuItem);
+            return;
+        }
+
         var cell = event.target.closest("[data-wk-cell]");
         if (cell) {
             closeWordKitMenus();
@@ -3856,13 +4204,23 @@ function wireSyncfusionOfficeKitChrome(ribbon, editorContainer) {
         if (cell) {
             highlightWordKitTableGrid(ribbon, cell.getAttribute("data-wk-cell"));
         }
+
+        // Re chuot vao "Đầu trang ▸" thi mo menu con; sang muc khac cua menu cha thi dong lai (nhu Word).
+        var menuItem = event.target.closest(".wk-menu .wk-menu-item");
+        if (menuItem) {
+            if (menuItem.hasAttribute("data-wk-submenu")) {
+                openWordKitSubmenu(menuItem);
+            } else {
+                closeWordKitSubmenus(menuItem.closest(".wk-menu"), null);
+            }
+        }
     });
 
     ribbon.addEventListener("change", function (event) {
         var control = event.target.closest("[data-office-kit-change]");
         if (control) {
             // Chon "Mau khac..." cho chu thi dong menu; mau / do day but ve vien thi giu menu de chon kieu vien tiep.
-            if (control.getAttribute("data-office-kit-change") === "font-color-custom") {
+            if (control.getAttribute("data-office-kit-change") === "font-color-custom" || control.getAttribute("data-office-kit-change") === "shading-custom") {
                 closeWordKitMenus();
             }
             runSyncfusionOfficeKitChange(editorContainer, control.getAttribute("data-office-kit-change"), control.value);
@@ -4058,6 +4416,7 @@ function attachWordKitEditorEvents(editorContainer) {
     wireWordKitMiniToolbar(editorContainer, editor);
     wireWordKitShiftClickSelect(editor);
     patchWordKitPageSetupDialog(editor);
+    patchWordKitParagraphDialog(editor);
 
     document.addEventListener("mouseup", function (event) {
         if (wordKitFormatPainter) {
@@ -5977,6 +6336,7 @@ var wordKitSectionCommands = {
     margins: true,
     orientation: true,
     "page-orientation": true,
+    "orientation-selection": true,
     "page-size": true,
 };
 var wordKitTableCommands = {
@@ -6068,6 +6428,169 @@ function applyWordKitOrientation(selection, orientation) {
     }
 }
 
+// ---------------------------------------------------------------------------
+// Xoay rieng mot trang (Word: Thiết lập trang > Áp dụng cho: Văn bản được chọn)
+// ---------------------------------------------------------------------------
+/*
+ * Ngat phan "Trang tiếp theo" tai con tro. Syncfusion 19.1 chen phan moi vao giua van ban ma khong don bang dau / chan
+ * trang cua cac phan phia sau (insertRemoveHeaderFooter chi tao muc khi con thieu): phan cuoi mat muc cua minh va lan dan
+ * trang sau (doi huong, kho giay) loi o updateHeaderFooterToParent. Chen san muc rong cho phan moi (noi voi phan truoc
+ * nhu Word) de cac phan sau giu dung dau / chan trang cua minh.
+ */
+function insertWordKitSectionBreak(editor) {
+    var headersFooters = editor.documentHelper && editor.documentHelper.headersFooters;
+    var body = editor.selection.start.paragraph && editor.selection.start.paragraph.bodyWidget;
+    var sectionIndex = body ? (typeof body.sectionIndex === "number" ? body.sectionIndex : body.index) : 0;
+    if (Array.isArray(headersFooters) && typeof sectionIndex === "number" && headersFooters.length > sectionIndex + 1) {
+        headersFooters.splice(sectionIndex + 1, 0, {});
+    }
+    editor.editor.insertSectionBreak("NewPage");
+}
+
+function getWordKitTopBlock(widget) {
+    var block = widget;
+    while (block && block.containerWidget && !block.containerWidget.sectionFormat) {
+        block = block.containerWidget;
+    }
+    return block;
+}
+
+function isWordKitPageBreakParagraph(block) {
+    return isWordKitParagraphWidget(block) && !block.isInsideTable && getWordKitParagraphTextOutsideFields(block) === "\f";
+}
+
+// Con tro o dau (atEnd = false) / cuoi doan dau tien / cuoi cung cua khoi (doan van hoac bang).
+function placeWordKitCaretInBlock(selection, block, atEnd) {
+    var paragraph = isWordKitParagraphWidget(block) ? block
+        : atEnd ? selection.getLastParagraphInLastCell(block) : selection.getFirstParagraphInFirstCell(block);
+    selection.selectParagraphInternal(paragraph, true);
+    if (atEnd) {
+        selection.moveToParagraphEnd();
+    } else {
+        selection.moveToParagraphStart();
+    }
+}
+
+function deleteWordKitParagraph(selection, editorModule, paragraph) {
+    selection.selectParagraphInternal(paragraph, true);
+    selection.extendToParagraphEnd();
+    editorModule.delete();
+}
+
+/*
+ * Chen ngat phan "Trang tiếp theo" tai con tro (dang o dau mot doan). Syncfusion de lai mot doan trong o cuoi phan truoc:
+ * bo doan trong do de trang truoc khong bi day them dong. Tra ve vi tri dau phan moi.
+ */
+function insertWordKitSectionBreakAtCaret(editor) {
+    var selection = editor.selection;
+    var editorModule = editor.editor;
+    insertWordKitSectionBreak(editor);
+    var sectionStart = selection.startOffset;
+    selection.movePreviousPosition();
+    var leftover = selection.start.paragraph;
+    var previous = leftover && leftover.previousRenderedWidget;
+    // Chi bo khi doan trong co doan van dung truoc trong cung phan (doan trong co the nam mot minh o trang sau).
+    if (leftover && !leftover.isInsideTable && leftover.isEmpty() && isWordKitParagraphWidget(previous) && !previous.isInsideTable
+        && previous.bodyWidget && leftover.bodyWidget && previous.bodyWidget.index === leftover.bodyWidget.index) {
+        editorModule.onBackSpace();
+    }
+    selection.select(sectionStart, sectionStart);
+    return sectionStart;
+}
+
+/**
+ * Doi huong rieng trang co con tro (hoac cac doan dang boi den): chen ngat phan truoc va sau roi doi huong phan giua,
+ * cac trang khac giu nguyen. Ngat trang ngay truoc / sau duoc thay bang ngat phan nen khong sinh trang trang.
+ */
+function applyWordKitOrientationToSelection(editor, orientation) {
+    var selection = editor && editor.selection;
+    var editorModule = editor && editor.editor;
+    if (!selection || !editorModule || typeof editorModule.insertSectionBreak !== "function") {
+        return false;
+    }
+    if (editor.layoutType !== "Pages" || isWordKitInHeaderFooter(selection)) {
+        showWordKitToast("Đặt con trỏ vào thân văn bản (Bố cục in) trước khi xoay trang.");
+        return false;
+    }
+
+    var firstBlock;
+    var lastBlock;
+    if (selection.isEmpty) {
+        var page = selection.start.paragraph.bodyWidget && selection.start.paragraph.bodyWidget.page;
+        if (!page || !page.bodyWidgets || !page.bodyWidgets.length) {
+            return false;
+        }
+        firstBlock = getWordKitTopBlock(page.bodyWidgets[0].firstChild);
+        lastBlock = getWordKitTopBlock(page.bodyWidgets[page.bodyWidgets.length - 1].lastChild);
+        // Ngat trang o cuoi trang la ranh gioi, khong thuoc noi dung trang.
+        while (isWordKitPageBreakParagraph(lastBlock) && lastBlock !== firstBlock && lastBlock.previousRenderedWidget) {
+            lastBlock = getWordKitTopBlock(lastBlock.previousRenderedWidget);
+        }
+    } else {
+        var startPosition = selection.isForward ? selection.start : selection.end;
+        var endPosition = selection.isForward ? selection.end : selection.start;
+        firstBlock = getWordKitTopBlock(startPosition.paragraph);
+        lastBlock = getWordKitTopBlock(endPosition.paragraph);
+        if (endPosition.isAtParagraphStart && lastBlock !== firstBlock && lastBlock.previousRenderedWidget) {
+            lastBlock = getWordKitTopBlock(lastBlock.previousRenderedWidget);
+        }
+    }
+    if (!firstBlock || !lastBlock) {
+        return false;
+    }
+
+    // Phia sau: lam truoc de vi tri phia truoc khong doi.
+    placeWordKitCaretInBlock(selection, lastBlock, true);
+    var rangeEnd = selection.startOffset;
+    selection.moveNextPosition();
+    if (selection.startOffset !== rangeEnd && isWordKitPageBreakParagraph(selection.start.paragraph)) {
+        deleteWordKitParagraph(selection, editorModule, selection.start.paragraph);
+        selection.select(rangeEnd, rangeEnd);
+        selection.moveNextPosition();
+    }
+    if (selection.startOffset !== rangeEnd) {
+        if (selection.start.paragraph.isInsideTable) {
+            // Ngay sau la mot bang: ngat o cuoi doan cuoi (khong chen duoc vao giua bang).
+            if (!isWordKitParagraphWidget(lastBlock)) {
+                showWordKitToast("Hai bảng liền nhau: chèn một dòng trống giữa hai bảng rồi thử lại.");
+                return false;
+            }
+            selection.select(rangeEnd, rangeEnd);
+            insertWordKitSectionBreak(editor);
+        } else {
+            insertWordKitSectionBreakAtCaret(editor);
+        }
+    }
+
+    // Phia truoc.
+    placeWordKitCaretInBlock(selection, firstBlock, false);
+    var rangeStart = selection.startOffset;
+    selection.movePreviousPosition();
+    if (selection.startOffset !== rangeStart && isWordKitPageBreakParagraph(selection.start.paragraph)) {
+        deleteWordKitParagraph(selection, editorModule, selection.start.paragraph);
+        placeWordKitCaretInBlock(selection, firstBlock, false);
+        rangeStart = selection.startOffset;
+        selection.movePreviousPosition();
+    }
+    if (selection.startOffset !== rangeStart) {
+        if (isWordKitParagraphWidget(firstBlock)) {
+            selection.select(rangeStart, rangeStart);
+            insertWordKitSectionBreakAtCaret(editor);
+        } else if (!selection.start.paragraph.isInsideTable) {
+            // Truoc la bang: ngat o cuoi doan dung truoc bang.
+            insertWordKitSectionBreak(editor);
+        } else {
+            showWordKitToast("Hai bảng liền nhau: chèn một dòng trống giữa hai bảng rồi thử lại.");
+            return false;
+        }
+    } else {
+        selection.select(rangeStart, rangeStart);
+    }
+
+    applyWordKitOrientation(selection, orientation);
+    return true;
+}
+
 function setWordKitColorBar(name, color) {
     document.querySelectorAll('[data-wk-color-bar="' + name + '"]').forEach(function (bar) {
         bar.style.background = color;
@@ -6115,17 +6638,26 @@ function runSyncfusionOfficeKitCommand(editorContainer, command, arg) {
     var keepFocus = true;
 
     if (wordKitTableCommands[command] && !isWordKitSelectionInTable(editor)) {
-        showWordKitToast("Hãy đặt con trỏ vào trong bảng trước.");
+        // Syncfusion 19.1 chua co to bong / vien cho doan van, chi cho o bang.
+        showWordKitToast(command.indexOf("table-shading") === 0
+            ? "Bộ soạn chỉ tô bóng được ô bảng. Đặt con trỏ vào bảng trước."
+            : "Hãy đặt con trỏ vào trong bảng trước.");
         return;
+    }
+
+    // Nut "Viền" o tab Trang đau: phan trai ap dung lai kieu vien vua chon (nhu Word).
+    if (command === "border-last") {
+        command = "border-" + wordKitLastBorder;
     }
 
     // Cac lenh vien bang tu menu: border-<Type>
     if (command.indexOf("border-") === 0) {
         if (!isWordKitSelectionInTable(editor)) {
-            showWordKitToast("Hãy đặt con trỏ vào trong bảng trước khi chỉnh viền.");
+            showWordKitToast("Bộ soạn chỉ kẻ viền được cho ô bảng. Đặt con trỏ vào bảng trước khi chỉnh viền.");
             return;
         }
         applySyncfusionOfficeKitTableBorderType(editor, command.slice("border-".length));
+        rememberWordKitLastBorder(command.slice("border-".length));
         finishWordKitCommand(editorContainer, editor, false, true);
         return;
     }
@@ -6443,9 +6975,28 @@ function runSyncfusionOfficeKitCommand(editorContainer, command, arg) {
             }
             break;
         case "insert-page-number":
-            if (editorModule.insertPageNumber) {
-                editorModule.insertPageNumber();
+            insertWordKitPageNumber(editor, "current", "", "plain");
+            break;
+        case "page-number": {
+            var pageNumberArgs = String(arg || "").split(",");
+            insertWordKitPageNumber(editor, pageNumberArgs[0], pageNumberArgs[1], pageNumberArgs[2]);
+            break;
+        }
+        case "page-number-format":
+            openWordKitPageNumberFormatDialog(editorContainer, editor);
+            keepFocus = false;
+            break;
+        case "page-number-remove":
+            if (!removeWordKitPageNumbers(editor)) {
+                showWordKitToast("Văn bản chưa có số trang ở đầu trang hay chân trang.");
             }
+            break;
+        case "text-to-table":
+            openWordKitTextToTableDialog(editorContainer, editor);
+            keepFocus = false;
+            break;
+        case "horizontal-line":
+            insertWordKitHorizontalLine(editor);
             break;
         case "insert-date-time":
             if (editorModule.insertText) {
@@ -6493,9 +7044,12 @@ function runSyncfusionOfficeKitCommand(editorContainer, command, arg) {
                 toggleSyncfusionOfficeKitOrientation(editor);
             }
             break;
+        case "orientation-selection":
+            applyWordKitOrientationToSelection(editor, arg === "Portrait" ? "Portrait" : "Landscape");
+            break;
         case "insert-section-break":
             if (editorModule.insertSectionBreak) {
-                editorModule.insertSectionBreak("NewPage");
+                insertWordKitSectionBreak(editor);
             }
             break;
         case "paragraph-settings":
@@ -6693,6 +7247,9 @@ function runSyncfusionOfficeKitChange(editorContainer, changeName, value) {
         editor.selection.sectionFormat.bottomMargin = pointValue;
     } else if (changeName === "layout-margin-left") {
         editor.selection.sectionFormat.leftMargin = pointValue;
+    } else if (changeName === "shading-custom") {
+        runSyncfusionOfficeKitCommand(editorContainer, "table-shading", String(value || "").toUpperCase());
+        return;
     } else if (changeName === "border-color") {
         syncfusionOfficeKitBorderColor = value || "#000000";
         return;
@@ -6726,6 +7283,1090 @@ function showSyncfusionDialog(editor, dialogName) {
     if (editor && typeof editor.showDialog === "function") {
         editor.showDialog(dialogName);
     }
+}
+
+// ---------------------------------------------------------------------------
+// So trang (menu "Số trang" kieu Word)
+// ---------------------------------------------------------------------------
+// Kieu so cua truong PAGE ("" = 1, 2, 3; "roman" = i, ii, iii...). Syncfusion doc kieu so tu ma truong (\* roman).
+var wordKitPageNumberFormat = "";
+var wordKitPageNumberFormats = [
+    ["", "1, 2, 3, ..."],
+    ["alphabetic", "a, b, c, ..."],
+    ["ALPHABETIC", "A, B, C, ..."],
+    ["roman", "i, ii, iii, ..."],
+    ["ROMAN", "I, II, III, ..."],
+];
+// Doan chi chua so trang do bo soan chen ("1" hoac "Trang 1/3"): xoa / thay ca doan, khong dung toi chu khac.
+var wordKitPageNumberOnlyText = /^\s*(Trang)?\s*\/?\s*$/i;
+
+function wordKitPageFieldCode(format) {
+    return "PAGE " + (format ? "\\* " + format + " " : "") + "\\* MERGEFORMAT";
+}
+
+function wordKitPageFieldFormat(code) {
+    var match = /\\\*\s*(alphabetic|roman)\b/i.exec(String(code || ""));
+    return match ? match[1] : "";
+}
+
+function isWordKitParagraphWidget(block) {
+    return !!(block && typeof block.getLength === "function" && block.childWidgets);
+}
+
+function isWordKitInHeaderFooter(selection) {
+    var block = selection && selection.start && selection.start.paragraph;
+    while (block && block.containerWidget) {
+        block = block.containerWidget;
+    }
+    return !!(block && block.headerFooterType);
+}
+
+// Cac truong PAGE / NUMPAGES trong mot khoi dau / chan trang: [{ field, paragraph, code }].
+function findWordKitPageNumberFields(editor, widget) {
+    var found = [];
+    ((widget && widget.childWidgets) || []).forEach(function (block) {
+        if (!isWordKitParagraphWidget(block)) {
+            return;
+        }
+        block.childWidgets.forEach(function (line) {
+            (line.children || []).forEach(function (element) {
+                if (element.fieldType === 0 && element.fieldEnd) {
+                    var code = String(editor.selection.getFieldCode(element) || "");
+                    if (/^\s*(PAGE|NUMPAGES|SECTIONPAGES)\b/i.test(code)) {
+                        found.push({ field: element, paragraph: block, code: code });
+                    }
+                }
+            });
+        });
+    });
+    return found;
+}
+
+// Truong PAGE / NUMPAGES dau tien tren cac trang (dau trang roi chan trang). filter(item) loc them.
+function findWordKitPageNumberOnPages(editor, filter) {
+    var result = null;
+    (editor.documentHelper.pages || []).some(function (page) {
+        return [page.headerWidget, page.footerWidget].some(function (widget) {
+            var item = findWordKitPageNumberFields(editor, widget).filter(function (candidate) {
+                return !filter || filter(candidate, page);
+            })[0];
+            if (item) {
+                result = { page: page, widget: widget, item: item };
+            }
+            return !!item;
+        });
+    });
+    return result;
+}
+
+function getWordKitParagraphTextOutsideFields(paragraph) {
+    var text = "";
+    var depth = 0;
+    paragraph.childWidgets.forEach(function (line) {
+        (line.children || []).forEach(function (element) {
+            if (element.fieldType === 0) {
+                depth += 1;
+            } else if (element.fieldType === 1) {
+                depth = Math.max(0, depth - 1);
+            } else if (!depth && typeof element.text === "string") {
+                text += element.text;
+            }
+        });
+    });
+    return text;
+}
+
+function selectWordKitParagraphContent(selection, paragraph) {
+    selection.selectParagraphInternal(paragraph, true);
+    selection.extendToParagraphEnd();
+}
+
+function enterWordKitHeaderFooter(editor, widget) {
+    var selection = editor.selection;
+    if (typeof selection.checkLayout === "function") {
+        selection.checkLayout();
+    }
+    editor.enableHeaderAndFooter = true;
+    selection.enableHeadersFootersRegion(widget);
+}
+
+// Sua dau / chan trang bang lenh cua editor (con Hoan tac), xong quay ve cho con tro trong than van ban.
+function editWordKitHeadersFooters(editor, work) {
+    var selection = editor.selection;
+    var wasInHeaderFooter = isWordKitInHeaderFooter(selection);
+    var start = selection.startOffset;
+    var end = selection.endOffset;
+    var changed = work();
+    if (changed && !wasInHeaderFooter) {
+        selection.closeHeaderFooter();
+        try {
+            selection.select(start, end);
+        } catch (error) {
+            // Vi tri cu khong con (van ban ngan lai): de con tro o dau van ban.
+        }
+    }
+    return changed;
+}
+
+/**
+ * Chen so trang nhu Word: where = "top" (dau trang) / "bottom" (cuoi trang) / "current" (tai con tro),
+ * align = Left / Center / Right, style = "plain" (1) / "xofy" (Trang 1/3, so dam).
+ * Dau / chan trang da co so trang thi thay doan so trang do, khong chen them so thu hai.
+ */
+function insertWordKitPageNumber(editor, where, align, style) {
+    var selection = editor && editor.selection;
+    var editorModule = editor && editor.editor;
+    if (!selection || !editorModule || typeof editorModule.insertPageNumber !== "function") {
+        return;
+    }
+
+    if (where === "top" || where === "bottom") {
+        if (where === "top") {
+            selection.goToHeader();
+        } else {
+            selection.goToFooter();
+        }
+        var widget = selection.start && selection.start.paragraph && selection.start.paragraph.containerWidget;
+        if (!widget || !widget.headerFooterType) {
+            showWordKitToast("Chuyển sang Bố cục in để chèn số trang vào đầu / chân trang.");
+            return;
+        }
+
+        var paragraphs = widget.childWidgets.filter(isWordKitParagraphWidget);
+        var existing = findWordKitPageNumberFields(editor, widget).filter(function (item) {
+            return wordKitPageNumberOnlyText.test(getWordKitParagraphTextOutsideFields(item.paragraph));
+        })[0];
+        var isBlank = paragraphs.length === widget.childWidgets.length && paragraphs.every(function (paragraph) {
+            return paragraph.isEmpty();
+        });
+
+        if (existing) {
+            selectWordKitParagraphContent(selection, existing.paragraph);
+            if (!selection.isEmpty) {
+                editorModule.delete();
+            }
+        } else if (isBlank) {
+            selection.selectAll();
+            if (!selection.isEmpty) {
+                editorModule.delete();
+            }
+        } else if (where === "top") {
+            // Dau trang da co chu: so trang thanh doan rieng o tren cung.
+            selection.selectParagraphInternal(paragraphs[0], true);
+            editorModule.onEnter();
+            selection.moveToPreviousParagraph();
+        } else {
+            selection.selectParagraphInternal(paragraphs[paragraphs.length - 1], false);
+            editorModule.onEnter();
+        }
+
+        var paragraphFormat = selection.paragraphFormat;
+        paragraphFormat.textAlignment = align || "Center";
+        paragraphFormat.leftIndent = 0;
+        paragraphFormat.rightIndent = 0;
+        paragraphFormat.firstLineIndent = 0;
+    }
+
+    insertWordKitPageNumberContent(editor, style);
+}
+
+function insertWordKitPageNumberContent(editor, style) {
+    var editorModule = editor.editor;
+    var characterFormat = editor.selection.characterFormat;
+    var pageCode = wordKitPageFieldCode(wordKitPageNumberFormat);
+    characterFormat.bold = false;
+    if (style !== "xofy") {
+        insertWordKitPageField(editor, pageCode, false);
+        return;
+    }
+
+    editorModule.insertText("Trang ");
+    insertWordKitPageField(editor, pageCode, true);
+    characterFormat.bold = false;
+    editorModule.insertText("/");
+    insertWordKitPageField(editor, "NUMPAGES \\* MERGEFORMAT", true);
+    characterFormat.bold = false;
+}
+
+/*
+ * Chen truong so trang bang createFields cua Syncfusion (lenh insertPageNumber cung dung): ket qua la FieldTextElementBox
+ * nen moi trang tu tinh lai so cua minh. insertField chi tao chu thuong "1", trang nao cung hien 1.
+ */
+function insertWordKitPageField(editor, code, bold) {
+    var selection = editor.selection;
+    var editorModule = editor.editor;
+    var start = selection.startOffset;
+    if (typeof editorModule.createFields === "function") {
+        editorModule.createFields(code);
+    } else if (/^\s*NUMPAGES/i.test(code)) {
+        editorModule.insertPageCount();
+    } else {
+        editorModule.insertPageNumber(wordKitPageFieldFormat(code) || undefined);
+    }
+    if (bold) {
+        var end = selection.endOffset;
+        selection.select(start, end);
+        selection.characterFormat.bold = true;
+        selection.select(end, end);
+    }
+}
+
+// "Xóa số trang": bo so trang o moi dau / chan trang. Doan chi co so trang thi xoa ca doan, con lai chi xoa truong.
+function removeWordKitPageNumbers(editor) {
+    var selection = editor && editor.selection;
+    var editorModule = editor && editor.editor;
+    if (!selection || !editorModule || !editor.documentHelper || editor.layoutType !== "Pages") {
+        return false;
+    }
+
+    return editWordKitHeadersFooters(editor, function () {
+        var removed = 0;
+        var lastField = null;
+        for (var guard = 0; guard < 200; guard += 1) {
+            var target = findWordKitPageNumberOnPages(editor, null);
+            if (!target || target.item.field === lastField) {
+                break;
+            }
+            lastField = target.item.field;
+            enterWordKitHeaderFooter(editor, target.widget);
+            var paragraph = target.item.paragraph;
+            var wholeParagraph = wordKitPageNumberOnlyText.test(getWordKitParagraphTextOutsideFields(paragraph));
+            if (wholeParagraph) {
+                selectWordKitParagraphContent(selection, paragraph);
+            } else {
+                selection.selectFieldInternal(target.item.field);
+            }
+            if (selection.isEmpty) {
+                break;
+            }
+            editorModule.delete();
+            removed += 1;
+
+            // Doan so trang rieng (khong phai doan dau) thi bo luon dong trong, dau / chan trang khong cao them.
+            var current = selection.start.paragraph;
+            var container = current && current.containerWidget;
+            if (wholeParagraph && current.isEmpty() && container && container.childWidgets.indexOf(current) > 0) {
+                editorModule.onBackSpace();
+            }
+        }
+        return removed > 0;
+    });
+}
+
+// "Định dạng số trang...": doi kieu so cua cac so trang da co trong phan hien tai (giu nguyen chu dam).
+function reformatWordKitPageNumbers(editor, format) {
+    var selection = editor.selection;
+    var editorModule = editor.editor;
+    var sectionIndex = getWordKitSectionIndex(editor);
+
+    return editWordKitHeadersFooters(editor, function () {
+        var changed = 0;
+        var lastField = null;
+        for (var guard = 0; guard < 200; guard += 1) {
+            var target = findWordKitPageNumberOnPages(editor, function (item, page) {
+                return /^\s*PAGE\b/i.test(item.code) && page.sectionIndex === sectionIndex && wordKitPageFieldFormat(item.code) !== format;
+            });
+            if (!target || target.item.field === lastField) {
+                break;
+            }
+            lastField = target.item.field;
+            enterWordKitHeaderFooter(editor, target.widget);
+            selection.selectFieldInternal(target.item.field);
+            var bold = !!selection.characterFormat.bold;
+            editorModule.delete();
+            selection.characterFormat.bold = false;
+            insertWordKitPageField(editor, wordKitPageFieldCode(format), bold);
+            changed += 1;
+        }
+        return changed > 0;
+    });
+}
+
+function getWordKitSectionIndex(editor) {
+    var paragraph = editor.selection.start && editor.selection.start.paragraph;
+    var body = paragraph && paragraph.bodyWidget;
+    if (body && body.page && isWordKitInHeaderFooter(editor.selection)) {
+        return body.page.sectionIndex;
+    }
+    return body ? body.index : 0;
+}
+
+function openWordKitPageNumberFormatDialog(editorContainer, editor) {
+    if (!editor || !editor.selection || !editor.selection.sectionFormat) {
+        return;
+    }
+    var sectionIndex = getWordKitSectionIndex(editor);
+    var existing = findWordKitPageNumberOnPages(editor, function (item, page) {
+        return /^\s*PAGE\b/i.test(item.code) && page.sectionIndex === sectionIndex;
+    });
+    var currentFormat = existing ? wordKitPageFieldFormat(existing.item.code) : wordKitPageNumberFormat;
+    var sectionFormat = editor.selection.sectionFormat;
+    var restart = !!sectionFormat.restartPageNumbering;
+    var startAt = Number(sectionFormat.pageStartingNumber) || 1;
+
+    openWordKitDialog({
+        title: "Định dạng số trang",
+        width: 360,
+        body: [
+            '<div class="wk-dlg-row"><label class="wk-dlg-label" for="wk-pn-format">Kiểu số:</label>',
+            '<select id="wk-pn-format" class="wk-dlg-select" data-wk-field="format">',
+            wordKitPageNumberFormats.map(function (item) {
+                return '<option value="' + item[0] + '"' + (item[0] === currentFormat ? " selected" : "") + ">" + item[1] + "</option>";
+            }).join(""),
+            "</select></div>",
+            wkDialogSection("Đánh số trang"),
+            '<label class="wk-dlg-check"><input type="radio" name="wk-pn-restart" value="0"' + (restart ? "" : " checked") + "> Tiếp theo phần trước</label>",
+            '<div class="wk-dlg-row"><label class="wk-dlg-check"><input type="radio" name="wk-pn-restart" value="1"' + (restart ? " checked" : "") + "> Bắt đầu từ:</label>",
+            wkSpin("startAt", "", { value: startAt, min: 0, max: 9999, step: 1 }),
+            "</div>",
+        ].join(""),
+        onOpen: function (dialog) {
+            // Go so o "Bắt đầu từ" thi tu chon muc do, nhu Word.
+            dialog.querySelector('[data-wk-field="startAt"]').addEventListener("input", function () {
+                dialog.querySelector('input[name="wk-pn-restart"][value="1"]').checked = true;
+            });
+        },
+        onOk: function (dialog) {
+            var format = dialog.querySelector('[data-wk-field="format"]').value;
+            var restartNow = dialog.querySelector('input[name="wk-pn-restart"]:checked').value === "1";
+            var startNow = Math.max(0, Math.round(readWordKitSpin(dialog, "startAt", startAt)));
+            var sectionChanged = restartNow !== restart || (restartNow && startNow !== startAt);
+            if (sectionChanged) {
+                sectionFormat.restartPageNumbering = restartNow;
+                if (restartNow) {
+                    sectionFormat.pageStartingNumber = startNow;
+                }
+            }
+            wordKitPageNumberFormat = format;
+            if (format !== currentFormat) {
+                reformatWordKitPageNumbers(editor, format);
+            }
+            finishWordKitCommand(editorContainer, editor, sectionChanged, true);
+        },
+    });
+}
+
+// "Đường kẻ ngang" (Word: Borders > Horizontal Line): mot doan rieng chua anh duong ke xam ngang vua le chu.
+function insertWordKitHorizontalLine(editor) {
+    var selection = editor && editor.selection;
+    var editorModule = editor && editor.editor;
+    if (!selection || !editorModule || typeof editorModule.insertImage !== "function") {
+        return;
+    }
+
+    var sectionFormat = selection.sectionFormat;
+    var widthPoints = (Number(sectionFormat.pageWidth) || 595.3) - (Number(sectionFormat.leftMargin) || 0) - (Number(sectionFormat.rightMargin) || 0);
+    var widthPixels = Math.max(40, Math.round(widthPoints * 96 / 72));
+    var canvas = document.createElement("canvas");
+    canvas.width = widthPixels;
+    canvas.height = 3;
+    var context = canvas.getContext("2d");
+    context.fillStyle = "#A0A0A0";
+    context.fillRect(0, 0, widthPixels, 2);
+    context.fillStyle = "#E3E3E3";
+    context.fillRect(0, 2, widthPixels, 1);
+
+    var paragraphFormat = selection.paragraphFormat;
+    var previous = {
+        leftIndent: paragraphFormat.leftIndent,
+        rightIndent: paragraphFormat.rightIndent,
+        firstLineIndent: paragraphFormat.firstLineIndent,
+        textAlignment: paragraphFormat.textAlignment,
+    };
+    var paragraph = selection.start.paragraph;
+    if (!selection.isEmpty) {
+        editorModule.delete();
+    }
+    if (paragraph && !paragraph.isEmpty()) {
+        editorModule.onEnter();
+    }
+    paragraphFormat.leftIndent = 0;
+    paragraphFormat.rightIndent = 0;
+    paragraphFormat.firstLineIndent = 0;
+    paragraphFormat.textAlignment = "Left";
+    // fitImageToPage cua Syncfusion 19.1 so chieu rong anh (px) voi le chu tinh bang pt nen ep duong ke con 3/4 le chu:
+    // tat tam thoi de duong ke dai dung bang le chu.
+    var hasOwnFit = Object.prototype.hasOwnProperty.call(editorModule, "fitImageToPage");
+    var ownFit = editorModule.fitImageToPage;
+    editorModule.fitImageToPage = function () {};
+    try {
+        editorModule.insertImage(canvas.toDataURL("image/png"), widthPixels, 3);
+    } finally {
+        if (hasOwnFit) {
+            editorModule.fitImageToPage = ownFit;
+        } else {
+            delete editorModule.fitImageToPage;
+        }
+    }
+    editorModule.onEnter();
+    Object.keys(previous).forEach(function (key) {
+        if (previous[key] !== undefined && previous[key] !== null) {
+            paragraphFormat[key] = previous[key];
+        }
+    });
+}
+
+var wordKitLastBorder = "BottomBorder";
+var wordKitBorderButtons = {
+    BottomBorder: ["borderBottom", "Viền dưới"],
+    TopBorder: ["borderTop", "Viền trên"],
+    LeftBorder: ["borderLeft", "Viền trái"],
+    RightBorder: ["borderRight", "Viền phải"],
+    NoBorder: ["borderNone", "Không viền"],
+    AllBorders: ["borderAll", "Tất cả viền"],
+    OutsideBorders: ["borderOutside", "Viền ngoài"],
+    InsideBorders: ["borderInside", "Viền trong"],
+    InsideHorizontalBorder: ["borderInsideH", "Viền ngang bên trong"],
+    InsideVerticalBorder: ["borderInsideV", "Viền dọc bên trong"],
+};
+
+// Nut "Viền" doi bieu tuong theo kieu vien vua dung; bam lan sau ap dung lai kieu do (nhu Word).
+function rememberWordKitLastBorder(type) {
+    var button = wordKitBorderButtons[type];
+    if (!button) {
+        return;
+    }
+    wordKitLastBorder = type;
+    document.querySelectorAll("[data-wk-border-last]").forEach(function (element) {
+        element.innerHTML = wkIcon(button[0]);
+        element.title = button[1];
+    });
+}
+
+// ---------------------------------------------------------------------------
+// Chuyen van ban thanh bang (Chèn > Bảng > Chuyển văn bản thành bảng...)
+// ---------------------------------------------------------------------------
+function splitWordKitTextToCells(text, separator, columns) {
+    var lines = String(text || "").replace(/\r\n?/g, "\n").split("\n");
+    while (lines.length && lines[lines.length - 1] === "") {
+        lines.pop();
+    }
+    if (separator === "paragraph") {
+        var rows = [];
+        for (var index = 0; index < lines.length; index += columns) {
+            rows.push(lines.slice(index, index + columns));
+        }
+        return rows;
+    }
+    return lines.map(function (line) {
+        return separator ? line.split(separator) : [line];
+    });
+}
+
+function buildWordKitTableSfdt(rows, columns, widthPoints, characterFormat) {
+    var cellWidth = widthPoints / columns;
+    var border = { lineStyle: "Single", lineWidth: 0.5, color: "#000000" };
+    var font = {
+        fontFamily: characterFormat.fontFamily || "Times New Roman",
+        fontSize: Number(characterFormat.fontSize) || 14,
+        fontColor: characterFormat.fontColor || "#000000",
+    };
+    return {
+        sections: [{
+            sectionFormat: {},
+            headersFooters: {},
+            blocks: [{
+                tableFormat: {
+                    borders: { top: border, left: border, right: border, bottom: border, horizontal: border, vertical: border, diagonalDown: {}, diagonalUp: {} },
+                    leftIndent: 0, leftMargin: 5.4, rightMargin: 5.4, topMargin: 0, bottomMargin: 0, preferredWidthType: "Auto",
+                },
+                grid: rows[0].map(function () {
+                    return cellWidth;
+                }),
+                columnCount: columns,
+                rows: rows.map(function (row) {
+                    var cells = [];
+                    for (var column = 0; column < columns; column += 1) {
+                        var value = row[column] === undefined ? "" : String(row[column]).trim();
+                        cells.push({
+                            blocks: [{
+                                paragraphFormat: { leftIndent: 0, rightIndent: 0, firstLineIndent: 0, textAlignment: "Left", beforeSpacing: 0, afterSpacing: 0 },
+                                characterFormat: font,
+                                inlines: value ? [{ text: value, characterFormat: font }] : [],
+                            }],
+                            cellFormat: { preferredWidth: cellWidth, preferredWidthType: "Point", cellWidth: cellWidth, columnSpan: 1, rowSpan: 1 },
+                            columnIndex: column,
+                        });
+                    }
+                    return { cells: cells, rowFormat: { height: 0, heightType: "Auto" } };
+                }),
+            }],
+        }],
+    };
+}
+
+// Nhu Word: chuyen ca doan, tu dau doan dau toi het dau xuong dong cua doan cuoi, de bang thay han cac doan do
+// (khong de lai dong trong sau bang, doan phia sau giu nguyen dinh dang).
+function selectWordKitWholeParagraphs(selection) {
+    var start = selection.isForward ? selection.startOffset : selection.endOffset;
+    var end = selection.isForward ? selection.endOffset : selection.startOffset;
+    // Boi den ca dong (vung chon dung o dau doan sau): doan sau khong thuoc vung chuyen.
+    var endsAtNextParagraph = (selection.isForward ? selection.end : selection.start).isAtParagraphStart;
+    selection.select(start, start);
+    selection.extendToParagraphStart();
+    var paragraphStart = selection.endOffset;
+    if (endsAtNextParagraph) {
+        selection.select(paragraphStart, end);
+        return;
+    }
+    selection.select(end, end);
+    selection.extendToParagraphEnd();
+    // extendToParagraphEnd cua Syncfusion dung sau dau xuong dong cua doan (do dai doan + 1).
+    selection.select(paragraphStart, selection.endOffset);
+}
+
+function openWordKitTextToTableDialog(editorContainer, editor) {
+    var selection = editor && editor.selection;
+    if (!selection || selection.isEmpty || isWordKitSelectionInTable(editor)) {
+        showWordKitToast("Bôi đen các dòng văn bản (ngoài bảng) cần chuyển thành bảng trước.");
+        return;
+    }
+
+    selectWordKitWholeParagraphs(selection);
+    var text = String(selection.text || "");
+    var separator = text.indexOf("\t") !== -1 ? "\t" : "paragraph";
+    var countColumns = function (sep, other) {
+        if (sep === "paragraph") {
+            return 1;
+        }
+        return splitWordKitTextToCells(text, sep === "other" ? other : sep, 1).reduce(function (max, row) {
+            return Math.max(max, row.length);
+        }, 1);
+    };
+
+    openWordKitDialog({
+        title: "Chuyển văn bản thành bảng",
+        width: 380,
+        body: [
+            wkDialogSection("Kích thước bảng"),
+            '<div class="wk-dlg-grid2"><label class="wk-dlg-label">Số cột:</label>' + wkSpin("columns", "", { value: countColumns(separator), min: 1, max: 63, step: 1 }),
+            '<label class="wk-dlg-label">Số hàng:</label><span class="wk-dlg-static" data-wk-rows></span></div>',
+            wkDialogSection("Tách văn bản tại"),
+            '<div class="wk-dlg-grid2 wk-dlg-radios">',
+            '<label class="wk-dlg-check"><input type="radio" name="wk-tt-sep" value="paragraph"' + (separator === "paragraph" ? " checked" : "") + "> Dấu đoạn</label>",
+            '<label class="wk-dlg-check"><input type="radio" name="wk-tt-sep" value=","> Dấu phẩy</label>',
+            '<label class="wk-dlg-check"><input type="radio" name="wk-tt-sep" value="&#9;"' + (separator === "\t" ? " checked" : "") + "> Tab</label>",
+            '<label class="wk-dlg-check"><input type="radio" name="wk-tt-sep" value="other"> Khác: <input type="text" class="wk-dlg-input wk-dlg-tiny" maxlength="1" value="-" data-wk-field="other"></label>',
+            "</div>",
+        ].join(""),
+        onOpen: function (dialog) {
+            var update = function (event) {
+                var sep = dialog.querySelector('input[name="wk-tt-sep"]:checked').value;
+                var other = dialog.querySelector('[data-wk-field="other"]').value || "-";
+                var columnsInput = dialog.querySelector('[data-wk-field="columns"]');
+                var target = event && event.target;
+                if (target && (target.name === "wk-tt-sep" || target.getAttribute("data-wk-field") === "other")) {
+                    columnsInput.value = String(countColumns(sep, other));
+                }
+                var columns = Math.max(1, Math.round(readWordKitSpin(dialog, "columns", 1)));
+                var rows = splitWordKitTextToCells(text, sep === "paragraph" ? "paragraph" : sep === "other" ? other : sep, columns);
+                dialog.querySelector("[data-wk-rows]").textContent = String(Math.max(1, rows.length));
+            };
+            dialog.addEventListener("change", update);
+            dialog.addEventListener("input", update);
+            update();
+        },
+        onOk: function (dialog) {
+            var sep = dialog.querySelector('input[name="wk-tt-sep"]:checked').value;
+            var other = dialog.querySelector('[data-wk-field="other"]').value || "-";
+            var columns = Math.max(1, Math.round(readWordKitSpin(dialog, "columns", 1)));
+            var rows = splitWordKitTextToCells(text, sep === "paragraph" ? "paragraph" : sep === "other" ? other : sep, columns);
+            if (!rows.length) {
+                return;
+            }
+            var sectionFormat = selection.sectionFormat;
+            var widthPoints = (Number(sectionFormat.pageWidth) || 595.3) - (Number(sectionFormat.leftMargin) || 0) - (Number(sectionFormat.rightMargin) || 0);
+            var sfdt = buildWordKitTableSfdt(rows, columns, widthPoints, selection.characterFormat || {});
+            if (!pasteSyncfusionOfficeKitSfdt(editor, sfdt, text)) {
+                showWordKitToast("Không chuyển được văn bản thành bảng.");
+            }
+            // Chuyen doi khong phai dan: khong hien nut "Tùy chọn dán" canh bang.
+            selection.isViewPasteOptions = false;
+            if (selection.pasteElement) {
+                selection.pasteElement.style.display = "none";
+            }
+            finishWordKitCommand(editorContainer, editor, false, true);
+        },
+    });
+}
+
+// ---------------------------------------------------------------------------
+// Hop thoai kieu Word (thanh tieu de, the, OK / Huy) dung chung
+// ---------------------------------------------------------------------------
+function wkDialogSection(title) {
+    return '<div class="wk-dlg-section"><span>' + title + "</span></div>";
+}
+
+// O so co mui ten tang / giam nhu Word ("1,27 cm", "8 pt"). unit rong = so tron.
+function wkSpin(name, unit, options) {
+    options = options || {};
+    return '<span class="wk-spin' + (options.disabled ? " wk-spin-off" : "") + '">'
+        + '<input type="text" class="wk-dlg-input" data-wk-field="' + name + '" data-wk-unit="' + unit + '" data-wk-step="' + (options.step || 1) + '"'
+        + ' data-wk-min="' + (options.min === undefined ? -9999 : options.min) + '" data-wk-max="' + (options.max === undefined ? 9999 : options.max) + '"'
+        + ' value="' + wkEscape(options.value === undefined || options.value === null ? "" : formatWordKitNumber(options.value, unit)) + '"' + (options.disabled ? " disabled" : "") + ">"
+        + '<span class="wk-spin-btns"><button type="button" tabindex="-1" data-wk-spin="1" aria-label="Tăng"' + (options.disabled ? " disabled" : "") + ">" + wkIcon("chevronUp") + "</button>"
+        + '<button type="button" tabindex="-1" data-wk-spin="-1" aria-label="Giảm"' + (options.disabled ? " disabled" : "") + ">" + wkIcon("chevronDown") + "</button></span></span>";
+}
+
+function formatWordKitNumber(value, unit) {
+    var rounded = Math.round(Number(value) * 100) / 100;
+    return String(rounded).replace(".", ",") + (unit ? " " + unit : "");
+}
+
+function parseWordKitNumber(text) {
+    var match = /-?\d+(?:[.,]\d+)?/.exec(String(text || ""));
+    return match ? Number(match[0].replace(",", ".")) : null;
+}
+
+function readWordKitSpin(dialog, name, fallback) {
+    var input = dialog.querySelector('[data-wk-field="' + name + '"]');
+    var value = input ? parseWordKitNumber(input.value) : null;
+    return value === null ? fallback : value;
+}
+
+function closeWordKitDialog() {
+    var open = document.querySelector(".wk-dlg-backdrop");
+    if (open && open.wordKitClose) {
+        open.wordKitClose();
+    }
+}
+
+/**
+ * Mo hop thoai: options = { title, width, body (HTML), footLeft (HTML), onOpen(dialog), onOk(dialog) -> false de giu mo }.
+ * Enter = OK, Esc = Huy, keo thanh tieu de de di chuyen. Cac the: .wk-dlg-tab[data-wk-tab] + .wk-dlg-page[data-wk-page].
+ */
+function openWordKitDialog(options) {
+    closeWordKitDialog();
+    closeWordKitMenus();
+
+    var backdrop = document.createElement("div");
+    backdrop.className = "wk-dlg-backdrop";
+    backdrop.innerHTML = '<div class="wk-dlg" role="dialog" aria-modal="true" aria-label="' + wkEscape(options.title) + '" style="width:' + (options.width || 420) + 'px">'
+        + '<div class="wk-dlg-head"><span class="wk-dlg-title">' + options.title + "</span>"
+        + '<button type="button" class="wk-dlg-x" data-wk-dlg-close title="Đóng (Esc)">' + "&#10005;" + "</button></div>"
+        + '<div class="wk-dlg-body">' + options.body + "</div>"
+        + '<div class="wk-dlg-foot">' + (options.footLeft || "") + '<span class="wk-dlg-gap"></span>'
+        + '<button type="button" class="wk-dlg-btn wk-dlg-ok" data-wk-dlg-ok>OK</button>'
+        + '<button type="button" class="wk-dlg-btn" data-wk-dlg-close>Hủy</button></div></div>';
+    document.body.appendChild(backdrop);
+    var dialog = backdrop.querySelector(".wk-dlg");
+
+    var onKey = function (event) {
+        if (event.key === "Escape") {
+            event.preventDefault();
+            event.stopPropagation();
+            close();
+        } else if (event.key === "Enter" && dialog.contains(event.target) && event.target.tagName !== "BUTTON" && event.target.tagName !== "SELECT") {
+            event.preventDefault();
+            ok();
+        }
+    };
+    var close = function () {
+        document.removeEventListener("keydown", onKey, true);
+        backdrop.remove();
+    };
+    var ok = function () {
+        if (options.onOk && options.onOk(dialog) === false) {
+            return;
+        }
+        close();
+    };
+    backdrop.wordKitClose = close;
+    document.addEventListener("keydown", onKey, true);
+
+    backdrop.addEventListener("click", function (event) {
+        if (event.target.closest("[data-wk-dlg-close]")) {
+            close();
+            return;
+        }
+        if (event.target.closest("[data-wk-dlg-ok]")) {
+            ok();
+            return;
+        }
+        var tab = event.target.closest("[data-wk-tab]");
+        if (tab) {
+            dialog.querySelectorAll("[data-wk-tab]").forEach(function (other) {
+                other.classList.toggle("wk-on", other === tab);
+                other.setAttribute("aria-selected", other === tab ? "true" : "false");
+            });
+            dialog.querySelectorAll("[data-wk-page]").forEach(function (page) {
+                page.hidden = page.getAttribute("data-wk-page") !== tab.getAttribute("data-wk-tab");
+            });
+            return;
+        }
+        var spinButton = event.target.closest("[data-wk-spin]");
+        if (spinButton && !spinButton.disabled) {
+            stepWordKitSpin(dialog, spinButton.closest(".wk-spin").querySelector("input"), Number(spinButton.getAttribute("data-wk-spin")));
+        }
+    });
+
+    // O so: mui ten len / xuong tren ban phim cung tang / giam; roi o thi viet lai cho dung dang "1,27 cm".
+    dialog.addEventListener("keydown", function (event) {
+        var input = event.target.closest(".wk-spin input");
+        if (input && (event.key === "ArrowUp" || event.key === "ArrowDown")) {
+            event.preventDefault();
+            stepWordKitSpin(dialog, input, event.key === "ArrowUp" ? 1 : -1);
+        }
+    });
+    dialog.addEventListener("focusout", function (event) {
+        var input = event.target.closest && event.target.closest(".wk-spin input");
+        if (input && input.value.trim() !== "") {
+            var value = parseWordKitNumber(input.value);
+            if (value !== null) {
+                input.value = formatWordKitNumber(clampWordKitSpin(input, value), input.getAttribute("data-wk-unit"));
+            }
+        }
+    });
+
+    var head = dialog.querySelector(".wk-dlg-head");
+    head.addEventListener("mousedown", function (event) {
+        if (event.button !== 0 || event.target.closest("button")) {
+            return;
+        }
+        var rect = dialog.getBoundingClientRect();
+        var offsetX = event.clientX - rect.left;
+        var offsetY = event.clientY - rect.top;
+        var move = function (moveEvent) {
+            dialog.style.position = "fixed";
+            dialog.style.margin = "0";
+            dialog.style.left = Math.max(0, Math.min(window.innerWidth - 60, moveEvent.clientX - offsetX)) + "px";
+            dialog.style.top = Math.max(0, Math.min(window.innerHeight - 30, moveEvent.clientY - offsetY)) + "px";
+        };
+        var up = function () {
+            document.removeEventListener("mousemove", move);
+            document.removeEventListener("mouseup", up);
+        };
+        document.addEventListener("mousemove", move);
+        document.addEventListener("mouseup", up);
+        event.preventDefault();
+    });
+
+    if (options.onOpen) {
+        options.onOpen(dialog);
+    }
+    var first = dialog.querySelector(".wk-dlg-body select:not(:disabled), .wk-dlg-body input:not(:disabled)");
+    if (first) {
+        first.focus();
+    }
+    return dialog;
+}
+
+// ---------------------------------------------------------------------------
+// Hop thoai "Đoạn văn" kieu Word (thay hop thoai Paragraph cua Syncfusion, ca o menu chuot phai)
+// ---------------------------------------------------------------------------
+var wordKitPointsPerCentimeter = 28.3464566929;
+var wordKitLineSpacingRules = [
+    ["single", "Đơn"],
+    ["onehalf", "1,5 dòng"],
+    ["double", "Kép"],
+    ["atleast", "Tối thiểu"],
+    ["exactly", "Chính xác"],
+    ["multiple", "Bội số"],
+];
+
+function patchWordKitParagraphDialog(editor) {
+    var module = editor && editor.paragraphDialogModule;
+    if (!module || module.wordKitPatched) {
+        return;
+    }
+    module.wordKitPatched = true;
+    module.show = function () {
+        if (!editor.isReadOnlyMode) {
+            openWordKitParagraphDialog(editor);
+        }
+    };
+}
+
+function wordKitNumberOrNull(value) {
+    return value === undefined || value === null || value === "" || !Number.isFinite(Number(value)) ? null : Number(value);
+}
+
+// Gia tri dang co cua doan dang chon. null = cac doan khac nhau (Word de trong o do).
+function readWordKitParagraphValues(paragraphFormat) {
+    var lineType = paragraphFormat.lineSpacingType;
+    var lineValue = wordKitNumberOrNull(paragraphFormat.lineSpacing);
+    var rule = null;
+    if (lineType === "AtLeast") {
+        rule = "atleast";
+    } else if (lineType === "Exactly") {
+        rule = "exactly";
+    } else if (lineType === "Multiple" && lineValue !== null) {
+        rule = Math.abs(lineValue - 1) < 0.001 ? "single" : Math.abs(lineValue - 1.5) < 0.001 ? "onehalf" : Math.abs(lineValue - 2) < 0.001 ? "double" : "multiple";
+    }
+    var firstLine = wordKitNumberOrNull(paragraphFormat.firstLineIndent);
+    var alignment = paragraphFormat.textAlignment;
+    return {
+        alignment: ["Left", "Center", "Right", "Justify"].indexOf(alignment) === -1 ? null : alignment,
+        left: wordKitNumberOrNull(paragraphFormat.leftIndent),
+        right: wordKitNumberOrNull(paragraphFormat.rightIndent),
+        special: firstLine === null ? null : firstLine > 0.01 ? "first" : firstLine < -0.01 ? "hanging" : "none",
+        by: firstLine === null || Math.abs(firstLine) <= 0.01 ? null : Math.abs(firstLine),
+        before: wordKitNumberOrNull(paragraphFormat.beforeSpacing),
+        after: wordKitNumberOrNull(paragraphFormat.afterSpacing),
+        rule: rule,
+        at: rule === "atleast" || rule === "exactly" || rule === "multiple" ? lineValue : null,
+        contextual: paragraphFormat.contextualSpacing === undefined || paragraphFormat.contextualSpacing === null ? null : !!paragraphFormat.contextualSpacing,
+    };
+}
+
+function wkDialogSelect(name, items, value, attrs) {
+    return '<select class="wk-dlg-select" data-wk-field="' + name + '"' + (attrs || "") + ">"
+        + (value === null ? '<option value="" selected></option>' : "")
+        + items.map(function (item) {
+            return '<option value="' + item[0] + '"' + (item[0] === value ? " selected" : "") + ">" + item[1] + "</option>";
+        }).join("") + "</select>";
+}
+
+function wkDialogCheck(name, label, checked, disabled, title) {
+    return '<label class="wk-dlg-check' + (disabled ? " wk-dlg-off" : "") + '"' + (title ? ' title="' + wkEscape(title) + '"' : "") + ">"
+        + '<input type="checkbox" data-wk-field="' + name + '"' + (checked ? " checked" : "") + (disabled ? " disabled" : "") + "> " + label + "</label>";
+}
+
+function openWordKitParagraphDialog(editor) {
+    var selection = editor && editor.selection;
+    if (!selection || !selection.paragraphFormat) {
+        return;
+    }
+    var original = readWordKitParagraphValues(selection.paragraphFormat);
+    var toCentimeters = function (points) {
+        return points === null ? null : points / wordKitPointsPerCentimeter;
+    };
+    var unsupported = "Bộ soạn (Syncfusion 19.1) chưa hỗ trợ tùy chọn này.";
+    var atUnit = original.rule === "multiple" ? "" : "pt";
+
+    var preview = '<div class="wk-dlg-preview" data-wk-preview></div>';
+    var body = [
+        '<div class="wk-dlg-tabs" role="tablist">',
+        '<button type="button" class="wk-dlg-tab wk-on" role="tab" aria-selected="true" data-wk-tab="indent">Thụt lề và giãn cách</button>',
+        '<button type="button" class="wk-dlg-tab" role="tab" aria-selected="false" data-wk-tab="breaks">Ngắt dòng và ngắt trang</button>',
+        "</div>",
+        '<div class="wk-dlg-page" data-wk-page="indent">',
+        wkDialogSection("Chung"),
+        '<div class="wk-dlg-grid4">',
+        '<label class="wk-dlg-label">Căn lề:</label>',
+        wkDialogSelect("alignment", [["Left", "Trái"], ["Center", "Giữa"], ["Right", "Phải"], ["Justify", "Đều hai bên"]], original.alignment),
+        "<span></span><span></span>",
+        '<label class="wk-dlg-label wk-dlg-off" title="' + unsupported + '">Mức đại cương:</label>',
+        wkDialogSelect("outline", [["body", "Văn bản thân"]], "body", " disabled"),
+        wkDialogCheck("collapsed", "Thu gọn mặc định", false, true, unsupported),
+        "<span></span>",
+        "</div>",
+        wkDialogSection("Thụt lề"),
+        '<div class="wk-dlg-grid4">',
+        '<label class="wk-dlg-label">Trái:</label>' + wkSpin("left", "cm", { value: toCentimeters(original.left), step: 0.1, min: -55, max: 55 }),
+        '<label class="wk-dlg-label">Đặc biệt:</label><label class="wk-dlg-label">Bằng:</label>',
+        '<label class="wk-dlg-label">Phải:</label>' + wkSpin("right", "cm", { value: toCentimeters(original.right), step: 0.1, min: -55, max: 55 }),
+        wkDialogSelect("special", [["none", "(không)"], ["first", "Dòng đầu tiên"], ["hanging", "Treo"]], original.special),
+        wkSpin("by", "cm", { value: toCentimeters(original.by), step: 0.1, min: 0, max: 55 }),
+        "</div>",
+        wkDialogCheck("mirror", "Thụt lề đối xứng", false, true, unsupported),
+        wkDialogSection("Giãn cách"),
+        '<div class="wk-dlg-grid4">',
+        '<label class="wk-dlg-label">Trước:</label>' + wkSpin("before", "pt", { value: original.before, step: 6, min: 0, max: 1584 }),
+        '<label class="wk-dlg-label">Giãn dòng:</label><label class="wk-dlg-label">Tại:</label>',
+        '<label class="wk-dlg-label">Sau:</label>' + wkSpin("after", "pt", { value: original.after, step: 6, min: 0, max: 1584 }),
+        wkDialogSelect("rule", wordKitLineSpacingRules, original.rule),
+        wkSpin("at", atUnit, { value: original.at, step: atUnit ? 1 : 0.5, min: atUnit ? 0.7 : 0.06, max: atUnit ? 1584 : 132 }),
+        "</div>",
+        wkDialogCheck("contextual", "Không thêm khoảng cách giữa các đoạn cùng kiểu", original.contextual === true, false),
+        "</div>",
+        '<div class="wk-dlg-page" data-wk-page="breaks" hidden>',
+        wkDialogSection("Phân trang"),
+        wkDialogCheck("widow", "Kiểm soát dòng mồ côi/góa", false, true, unsupported),
+        wkDialogCheck("keepNext", "Giữ với đoạn sau", false, true, unsupported),
+        wkDialogCheck("keepLines", "Giữ các dòng cùng nhau", false, true, unsupported),
+        wkDialogCheck("pageBreak", "Ngắt trang trước", false, true, unsupported),
+        wkDialogSection("Ngoại lệ định dạng"),
+        wkDialogCheck("noLineNumbers", "Bỏ đánh số dòng", false, true, unsupported),
+        wkDialogCheck("noHyphen", "Không gạch nối", false, true, unsupported),
+        '<p class="wk-dlg-note">Bộ soạn chưa hỗ trợ các tùy chọn ngắt dòng, ngắt trang này. Muốn sang trang mới, dùng Chèn &gt; Ngắt trang (Ctrl+Enter).</p>',
+        "</div>",
+        wkDialogSection("Xem trước"),
+        preview,
+    ].join("");
+
+    var readValues = function (dialog) {
+        var field = function (name) {
+            return dialog.querySelector('[data-wk-field="' + name + '"]');
+        };
+        var spinPoints = function (name, toPoints) {
+            var input = field(name);
+            var value = input.value.trim() === "" ? null : parseWordKitNumber(input.value);
+            return value === null ? null : toPoints ? value * wordKitPointsPerCentimeter : value;
+        };
+        return {
+            alignment: field("alignment").value || null,
+            left: spinPoints("left", true),
+            right: spinPoints("right", true),
+            special: field("special").value || null,
+            by: spinPoints("by", true),
+            before: spinPoints("before", false),
+            after: spinPoints("after", false),
+            rule: field("rule").value || null,
+            at: spinPoints("at", false),
+            contextual: field("contextual").checked,
+        };
+    };
+
+    openWordKitDialog({
+        title: "Đoạn văn",
+        width: 500,
+        body: body,
+        onOpen: function (dialog) {
+            var field = function (name) {
+                return dialog.querySelector('[data-wk-field="' + name + '"]');
+            };
+            var refresh = function () {
+                renderWordKitParagraphPreview(dialog.querySelector("[data-wk-preview]"), readValues(dialog), original);
+            };
+            // Doi "Đặc biệt" / "Giãn dòng" thi dien san gia tri hop ly nhu Word (Dòng đầu tiên 1,27 cm; Chính xác 12 pt; Bội số 3).
+            field("special").addEventListener("change", function () {
+                var by = field("by");
+                if (field("special").value === "none") {
+                    by.value = "";
+                } else if (by.value.trim() === "") {
+                    by.value = formatWordKitNumber(1.27, "cm");
+                }
+            });
+            field("by").addEventListener("input", function () {
+                if (field("special").value === "none" && field("by").value.trim() !== "") {
+                    field("special").value = "first";
+                }
+            });
+            field("rule").addEventListener("change", function () {
+                var at = field("at");
+                var rule = field("rule").value;
+                if (rule === "atleast" || rule === "exactly") {
+                    at.setAttribute("data-wk-unit", "pt");
+                    at.setAttribute("data-wk-step", "1");
+                    at.setAttribute("data-wk-min", "0.7");
+                    at.setAttribute("data-wk-max", "1584");
+                    at.value = formatWordKitNumber(12, "pt");
+                } else if (rule === "multiple") {
+                    at.setAttribute("data-wk-unit", "");
+                    at.setAttribute("data-wk-step", "0.5");
+                    at.setAttribute("data-wk-min", "0.06");
+                    at.setAttribute("data-wk-max", "132");
+                    at.value = formatWordKitNumber(3, "");
+                } else {
+                    at.value = "";
+                }
+            });
+            field("at").addEventListener("input", function () {
+                var rule = field("rule").value;
+                if (field("at").value.trim() !== "" && rule !== "atleast" && rule !== "exactly" && rule !== "multiple") {
+                    field("rule").value = "multiple";
+                    field("at").setAttribute("data-wk-unit", "");
+                    field("at").setAttribute("data-wk-step", "0.5");
+                }
+            });
+            dialog.addEventListener("input", refresh);
+            dialog.addEventListener("change", refresh);
+            refresh();
+        },
+        onOk: function (dialog) {
+            applyWordKitParagraphValues(editor, readValues(dialog), original);
+            scheduleWordKitStateUpdate(window.container);
+            if (editor.focusIn) {
+                editor.focusIn();
+            }
+        },
+    });
+}
+
+// Chi ghi nhung o nguoi dung da doi (o de trong vi cac doan khac nhau thi giu nguyen tung doan).
+function applyWordKitParagraphValues(editor, values, original) {
+    var format = editor.selection.paragraphFormat;
+    var differs = function (a, b) {
+        return a !== null && (b === null || Math.abs(a - b) > 0.005);
+    };
+    if (values.alignment && values.alignment !== original.alignment) {
+        format.textAlignment = values.alignment;
+    }
+    if (differs(values.left, original.left)) {
+        format.leftIndent = values.left;
+    }
+    if (differs(values.right, original.right)) {
+        format.rightIndent = values.right;
+    }
+    if (values.special && (values.special !== original.special || differs(values.by, original.by))) {
+        var by = values.by === null ? 0 : values.by;
+        format.firstLineIndent = values.special === "first" ? by : values.special === "hanging" ? -by : 0;
+    }
+    if (differs(values.before, original.before)) {
+        format.beforeSpacing = values.before;
+    }
+    if (differs(values.after, original.after)) {
+        format.afterSpacing = values.after;
+    }
+    if (values.rule && (values.rule !== original.rule || differs(values.at, original.at))) {
+        var fixed = { single: 1, onehalf: 1.5, double: 2 }[values.rule];
+        if (fixed) {
+            format.lineSpacingType = "Multiple";
+            format.lineSpacing = fixed;
+        } else if (values.at !== null) {
+            format.lineSpacingType = values.rule === "atleast" ? "AtLeast" : values.rule === "exactly" ? "Exactly" : "Multiple";
+            format.lineSpacing = values.at;
+        }
+    }
+    if (values.contextual !== (original.contextual === true) && !(original.contextual === null && !values.contextual)) {
+        format.contextualSpacing = values.contextual;
+    }
+}
+
+// Khung "Xem trước": doan truoc / doan mau / doan sau thu nho, ap dung can le, thut le, gian cach dang chon.
+function renderWordKitParagraphPreview(box, values, original) {
+    if (!box) {
+        return;
+    }
+    var pick = function (value, fallback) {
+        return value === null || value === undefined ? (fallback === null || fallback === undefined ? 0 : fallback) : value;
+    };
+    var scale = 0.55;
+    var left = pick(values.left, original.left);
+    var right = pick(values.right, original.right);
+    var special = values.special || original.special || "none";
+    var by = pick(values.by, original.by);
+    var firstLine = special === "first" ? by : special === "hanging" ? -by : 0;
+    var rule = values.rule || original.rule || "single";
+    var at = pick(values.at, original.at);
+    var lineHeight = { single: 7, onehalf: 10.5, double: 14 }[rule]
+        || (rule === "multiple" ? Math.max(2, 7 * (at || 1)) : Math.max(2, (at || 12) * 0.58));
+    var sampleStyle = [
+        "text-align:" + { Left: "left", Center: "center", Right: "right", Justify: "justify" }[values.alignment || original.alignment || "Left"],
+        "margin-left:" + Math.max(0, (left + Math.min(0, firstLine)) * scale) + "px",
+        "padding-left:" + Math.max(0, -Math.min(0, firstLine)) * scale + "px",
+        "margin-right:" + Math.max(0, right * scale) + "px",
+        "text-indent:" + firstLine * scale + "px",
+        "margin-top:" + pick(values.before, original.before) * scale + "px",
+        "margin-bottom:" + pick(values.after, original.after) * scale + "px",
+        "line-height:" + lineHeight + "px",
+        rule === "exactly" ? "overflow:hidden;max-height:" + lineHeight * 4 + "px" : "",
+    ].join(";");
+    var repeat = function (text, count) {
+        return new Array(count + 1).join(text + " ");
+    };
+    box.innerHTML = '<div class="wk-pp-ghost">' + repeat("Đoạn trước", 18) + "</div>"
+        + '<div class="wk-pp-sample" style="' + sampleStyle + '">' + repeat("Văn bản mẫu", 22) + "</div>"
+        + '<div class="wk-pp-ghost">' + repeat("Đoạn sau", 22) + "</div>";
+}
+
+function clampWordKitSpin(input, value) {
+    var min = Number(input.getAttribute("data-wk-min"));
+    var max = Number(input.getAttribute("data-wk-max"));
+    return Math.min(max, Math.max(min, value));
+}
+
+function stepWordKitSpin(dialog, input, direction) {
+    if (!input || input.disabled) {
+        return;
+    }
+    var step = Number(input.getAttribute("data-wk-step")) || 1;
+    var current = parseWordKitNumber(input.value);
+    // Bam tang / giam thi lam tron ve buoc gan nhat, nhu Word (0,13 cm + 0,1 = 0,2 cm).
+    var next = current === null ? 0 : (direction > 0 ? Math.floor(current / step + 1e-6) + 1 : Math.ceil(current / step - 1e-6) - 1) * step;
+    input.value = formatWordKitNumber(clampWordKitSpin(input, next), input.getAttribute("data-wk-unit"));
+    input.dispatchEvent(new Event("input", { bubbles: true }));
 }
 
 function applySyncfusionOfficeKitA4(editor) {
